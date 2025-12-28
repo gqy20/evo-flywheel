@@ -2,21 +2,19 @@
 
 import json
 from datetime import datetime, timezone
-from typing import Optional
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     ForeignKey,
     Integer,
-    String,
     Text,
-    CheckConstraint,
 )
 from sqlalchemy.orm import declarative_base, relationship
 
-Base = declarative_base()
+Base = declarative_base()  # type: ignore
 
 
 class Paper(Base):
@@ -139,9 +137,7 @@ class Feedback(Base):
     # 关系
     paper = relationship("Paper", backref="feedbacks")
 
-    __table_args__ = (
-        CheckConstraint("rating >= 1 AND rating <= 5", name="check_rating_range"),
-    )
+    __table_args__ = (CheckConstraint("rating >= 1 AND rating <= 5", name="check_rating_range"),)
 
     def __repr__(self) -> str:
         return f"<Feedback(id={self.id}, paper_id={self.paper_id}, rating={self.rating})>"

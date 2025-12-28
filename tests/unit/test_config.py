@@ -2,10 +2,7 @@
 
 import os
 
-import pytest
-from pydantic import ValidationError
-
-from evo_flywheel.config import Settings, get_settings, get_project_root, ensure_directories
+from evo_flywheel.config import Settings, ensure_directories, get_project_root, get_settings
 
 
 class TestSettings:
@@ -58,6 +55,7 @@ class TestGetSettings:
         """测试 get_settings 返回单例"""
         # Arrange - 需要清除已缓存的实例
         import evo_flywheel.config as config_module
+
         config_module._settings = None
 
         monkeypatch.setenv("DATABASE_URL", "sqlite:///singleton.db")
@@ -77,6 +75,7 @@ class TestGetSettings:
         """测试 get_settings 缓存配置实例"""
         # Arrange - 清除缓存
         import evo_flywheel.config as config_module
+
         config_module._settings = None
 
         monkeypatch.setenv("LOG_LEVEL", "ERROR")
@@ -86,7 +85,7 @@ class TestGetSettings:
         monkeypatch.setenv("LOG_LEVEL", "CRITICAL")
 
         # Act
-        settings_again = get_settings()
+        get_settings()
 
         # Assert - 应该返回缓存的实例
         assert settings.log_level == "ERROR"
@@ -104,7 +103,7 @@ class TestGetProjectRoot:
         root = get_project_root()
 
         # Assert
-        assert isinstance(root, os.PathLike) or isinstance(root, str)
+        assert isinstance(root, os.PathLike | str)
         assert str(root).endswith("evo-flywheel")
 
     def test_get_project_root_contains_src(self):
@@ -129,6 +128,7 @@ class TestEnsureDirectories:
 
         # 清除配置缓存
         import evo_flywheel.config as config_module
+
         config_module._settings = None
 
         monkeypatch.setenv("REPORTS_DIR", str(reports_dir))
@@ -153,6 +153,7 @@ class TestEnsureDirectories:
 
         # 清除配置缓存
         import evo_flywheel.config as config_module
+
         config_module._settings = None
 
         monkeypatch.setenv("REPORTS_DIR", str(reports_dir))

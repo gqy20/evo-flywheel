@@ -4,18 +4,18 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from evo_flywheel.db.models import Base, Paper, DailyReport, Feedback
 from evo_flywheel.db.crud import (
+    create_daily_report,
+    create_feedback,
     create_paper,
-    get_paper_by_id,
+    delete_paper,
+    get_daily_report_by_date,
     get_paper_by_doi,
+    get_paper_by_id,
     get_papers,
     update_paper,
-    delete_paper,
-    create_daily_report,
-    get_daily_report_by_date,
-    create_feedback,
 )
+from evo_flywheel.db.models import Base
 
 
 @pytest.fixture
@@ -74,7 +74,7 @@ class TestPaperCRUD:
     def test_get_paper_by_doi(self, db_session):
         """测试根据 DOI 获取论文"""
         # Arrange
-        paper = create_paper(
+        create_paper(
             db_session,
             title="Test Paper",
             doi="10.1234/test",

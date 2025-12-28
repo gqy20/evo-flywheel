@@ -3,15 +3,13 @@
 创建数据库表和索引
 """
 
-import os
 import sys
 from pathlib import Path
 
 # 添加项目根目录到路径
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-from sqlalchemy import create_engine, Index
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import Index, create_engine
 
 from evo_flywheel.config import get_settings
 from evo_flywheel.db.models import Base, Paper
@@ -63,9 +61,7 @@ def create_indexes(engine) -> None:
         engine: SQLAlchemy 引擎
     """
     # papers 表索引
-    Index("idx_papers_date", Paper.publication_date).create(
-        engine, checkfirst=True
-    )
+    Index("idx_papers_date", Paper.publication_date).create(engine, checkfirst=True)
     Index("idx_papers_score", Paper.importance_score).create(engine, checkfirst=True)
     Index("idx_papers_source", Paper.source).create(engine, checkfirst=True)
 
@@ -77,9 +73,7 @@ def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description="初始化 Evo-Flywheel 数据库")
-    parser.add_argument(
-        "--drop", action="store_true", help="删除所有表后重新创建（谨慎使用）"
-    )
+    parser.add_argument("--drop", action="store_true", help="删除所有表后重新创建（谨慎使用）")
     args = parser.parse_args()
 
     if args.drop:

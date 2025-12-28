@@ -3,12 +3,11 @@
 提供论文、报告、反馈的增删改查操作
 """
 
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy.orm import Session
 
-from evo_flywheel.db.models import Paper, DailyReport, Feedback
-
+from evo_flywheel.db.models import DailyReport, Feedback, Paper
 
 # ============================================================================
 # Paper CRUD
@@ -19,21 +18,21 @@ def create_paper(
     db: Session,
     *,
     title: str,
-    doi: Optional[str] = None,
-    authors: Optional[list[str]] = None,
-    abstract: Optional[str] = None,
-    url: Optional[str] = None,
-    publication_date: Optional[str] = None,
-    journal: Optional[str] = None,
-    source: Optional[str] = None,
-    taxa: Optional[str] = None,
-    evolutionary_scale: Optional[str] = None,
-    research_method: Optional[str] = None,
-    evolutionary_mechanism: Optional[str] = None,
-    importance_score: Optional[int] = None,
-    key_findings: Optional[list[str]] = None,
-    innovation_summary: Optional[str] = None,
-    tags: Optional[list[str]] = None,
+    doi: str | None = None,
+    authors: list[str] | None = None,
+    abstract: str | None = None,
+    url: str | None = None,
+    publication_date: str | None = None,
+    journal: str | None = None,
+    source: str | None = None,
+    taxa: str | None = None,
+    evolutionary_scale: str | None = None,
+    research_method: str | None = None,
+    evolutionary_mechanism: str | None = None,
+    importance_score: int | None = None,
+    key_findings: list[str] | None = None,
+    innovation_summary: str | None = None,
+    tags: list[str] | None = None,
 ) -> Paper:
     """创建新论文
 
@@ -90,7 +89,7 @@ def create_paper(
     return paper
 
 
-def get_paper_by_id(db: Session, paper_id: int) -> Optional[Paper]:
+def get_paper_by_id(db: Session, paper_id: int) -> Paper | None:
     """根据 ID 获取论文
 
     Args:
@@ -103,7 +102,7 @@ def get_paper_by_id(db: Session, paper_id: int) -> Optional[Paper]:
     return db.query(Paper).filter(Paper.id == paper_id).first()
 
 
-def get_paper_by_doi(db: Session, doi: str) -> Optional[Paper]:
+def get_paper_by_doi(db: Session, doi: str) -> Paper | None:
     """根据 DOI 获取论文
 
     Args:
@@ -121,10 +120,10 @@ def get_papers(
     *,
     skip: int = 0,
     limit: int = 100,
-    journal: Optional[str] = None,
-    source: Optional[str] = None,
-    min_score: Optional[int] = None,
-    taxa: Optional[str] = None,
+    journal: str | None = None,
+    source: str | None = None,
+    min_score: int | None = None,
+    taxa: str | None = None,
 ) -> list[Paper]:
     """获取论文列表
 
@@ -162,7 +161,7 @@ def update_paper(
     db: Session,
     paper_id: int,
     **kwargs: Any,
-) -> Optional[Paper]:
+) -> Paper | None:
     """更新论文
 
     Args:
@@ -227,8 +226,8 @@ def create_daily_report(
     report_date: str,
     total_papers: int,
     high_value_papers: int = 0,
-    top_paper_ids: Optional[list[int]] = None,
-    report_content: Optional[str] = None,
+    top_paper_ids: list[int] | None = None,
+    report_content: str | None = None,
 ) -> DailyReport:
     """创建每日报告
 
@@ -260,7 +259,7 @@ def create_daily_report(
     return report
 
 
-def get_daily_report_by_date(db: Session, report_date: str) -> Optional[DailyReport]:
+def get_daily_report_by_date(db: Session, report_date: str) -> DailyReport | None:
     """根据日期获取每日报告
 
     Args:
@@ -270,14 +269,10 @@ def get_daily_report_by_date(db: Session, report_date: str) -> Optional[DailyRep
     Returns:
         DailyReport | None: 每日报告对象，不存在返回 None
     """
-    return (
-        db.query(DailyReport)
-        .filter(DailyReport.report_date == report_date)
-        .first()
-    )
+    return db.query(DailyReport).filter(DailyReport.report_date == report_date).first()
 
 
-def get_latest_daily_report(db: Session) -> Optional[DailyReport]:
+def get_latest_daily_report(db: Session) -> DailyReport | None:
     """获取最新的每日报告
 
     Args:
@@ -286,11 +281,7 @@ def get_latest_daily_report(db: Session) -> Optional[DailyReport]:
     Returns:
         DailyReport | None: 最新的每日报告对象
     """
-    return (
-        db.query(DailyReport)
-        .order_by(DailyReport.report_date.desc())
-        .first()
-    )
+    return db.query(DailyReport).order_by(DailyReport.report_date.desc()).first()
 
 
 # ============================================================================
@@ -303,8 +294,8 @@ def create_feedback(
     *,
     paper_id: int,
     rating: int,
-    is_helpful: Optional[bool] = None,
-    comment: Optional[str] = None,
+    is_helpful: bool | None = None,
+    comment: str | None = None,
 ) -> Feedback:
     """创建反馈
 

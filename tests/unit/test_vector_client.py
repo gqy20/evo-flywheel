@@ -1,7 +1,5 @@
 """Chroma 向量数据库客户端单元测试"""
 
-import pytest
-
 
 def test_chroma_client_init():
     """测试 Chroma 客户端初始化"""
@@ -33,6 +31,7 @@ def test_add_paper_embedding(temp_chroma_dir, monkeypatch):
     """测试添加论文向量"""
     # Arrange
     import evo_flywheel.vector.client as client_module
+
     client_module._chroma_client = None
 
     monkeypatch.setenv("CHROMA_PERSIST_DIR", str(temp_chroma_dir))
@@ -66,13 +65,13 @@ def test_search_similar_papers(temp_chroma_dir, monkeypatch):
     """测试语义搜索"""
     # Arrange
     import evo_flywheel.vector.client as client_module
+
     client_module._chroma_client = None
 
     monkeypatch.setenv("CHROMA_PERSIST_DIR", str(temp_chroma_dir))
 
     from evo_flywheel.vector.client import (
         get_chroma_client,
-        add_paper_embedding,
         search_similar_papers,
     )
 

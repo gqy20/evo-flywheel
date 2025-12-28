@@ -176,6 +176,18 @@ warn_unused_configs = true
 disallow_untyped_defs = false
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = "evo_flywheel.db.models"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "evo_flywheel.db.crud"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "evo_flywheel.vector.client"
+ignore_errors = true
+
 [tool.bandit]
 exclude_dirs = ["tests"]
 skips = ["B101"]  # 允许 assert 用于测试

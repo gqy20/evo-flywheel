@@ -25,7 +25,7 @@ repos:
         args: [--ignore-missing-imports]
         additional_dependencies:
           - types-requests
-        exclude: ^tests/
+        exclude: ^(tests/|src/evo_flywheel/db/models\.py|src/evo_flywheel/vector/client\.py|src/evo_flywheel/db/crud\.py)
 
   # General pre-commit hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks

@@ -4,14 +4,14 @@
 """
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import chromadb
 
 from evo_flywheel.config import get_settings
 
 # 全局 Chroma 客户端实例
-_chroma_client: Optional[chromadb.ClientAPI] = None
+_chroma_client: chromadb.ClientAPI | None = None
 
 # 默认 collection 名称
 DEFAULT_COLLECTION = "evolutionary_papers"
@@ -42,7 +42,7 @@ def get_chroma_client() -> chromadb.ClientAPI:
 
 def get_or_create_collection(
     name: str = DEFAULT_COLLECTION,
-    metadata: Optional[dict[str, Any]] = None,
+    metadata: dict[str, Any] | None = None,
 ) -> chromadb.Collection:
     """获取或创建 collection
 
@@ -91,7 +91,7 @@ def search_similar_papers(
     query_embedding: list[float],
     n_results: int = 10,
     collection_name: str = DEFAULT_COLLECTION,
-    where: Optional[dict[str, Any]] = None,
+    where: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """搜索相似论文
 

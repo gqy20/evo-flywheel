@@ -3,9 +3,7 @@
 从环境变量和配置文件加载设置
 """
 
-import os
 from pathlib import Path
-from typing import Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -62,7 +60,7 @@ class Settings(BaseSettings):
 
 
 # 全局配置实例
-_settings: Optional[Settings] = None
+_settings: Settings | None = None
 
 
 def get_settings() -> Settings:
