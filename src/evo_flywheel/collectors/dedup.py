@@ -63,15 +63,19 @@ def extract_paper_key(paper: dict[str, Any]) -> str | None:
         str | None: 论文键 (格式: "doi:xxx" 或 "title:xxx")，无效返回 None
     """
     # 优先使用 DOI
-    doi = paper.get("doi", "").strip()
+    doi = paper.get("doi") or ""
     if doi:
-        return f"doi:{doi}"
+        doi = str(doi).strip()
+        if doi:
+            return f"doi:{doi}"
 
     # 其次使用标题
-    title = paper.get("title", "").strip()
+    title = paper.get("title") or ""
     if title:
-        normalized = normalize_title(title)
-        return f"title:{normalized}"
+        title = str(title).strip()
+        if title:
+            normalized = normalize_title(title)
+            return f"title:{normalized}"
 
     # 无法提取键
     logger.warning("Paper has no DOI or title")

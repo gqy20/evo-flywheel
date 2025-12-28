@@ -21,7 +21,7 @@ class TestCollectFromBiorxiv:
             {"title": "Paper 2", "doi": "10.1101/2024.12.28.222222"},
         ]
 
-        def mock_fetch(start, end):
+        def mock_fetch(start, end, category):
             return mock_papers
 
         monkeypatch.setattr("evo_flywheel.collectors.orchestrator.fetch_biorxiv_papers", mock_fetch)
@@ -45,7 +45,7 @@ class TestCollectFromBiorxiv:
             {"title": "Paper 1", "doi": "10.1101/2024.12.28.111111"},  # 重复
         ]
 
-        def mock_fetch(start, end):
+        def mock_fetch(start, end, category):
             return mock_papers
 
         monkeypatch.setattr("evo_flywheel.collectors.orchestrator.fetch_biorxiv_papers", mock_fetch)
@@ -71,11 +71,11 @@ class TestCollectFromRSSSources:
             {"name": "Source B", "url": "https://example.com/b.rss"},
         ]
 
-        # Mock RSS fetch results
+        # Mock RSS fetch results - 使用字典模拟 feedparser.Entry
         def mock_fetch_rss(url):
             mock_feed = mock.Mock()
             mock_feed.entries = [
-                mock.Mock(title=f"Paper from {url}", link=f"https://example.com/{url}")
+                {"title": f"Paper from {url}", "link": f"https://example.com/{url}"}
             ]
             return mock_feed
 
@@ -113,7 +113,7 @@ class TestCollectFromRSSSources:
             if "bad" in url:
                 raise Exception("Network error")
             mock_feed = mock.Mock()
-            mock_feed.entries = [mock.Mock(title="Good Paper", link="https://example.com/good")]
+            mock_feed.entries = [{"title": "Good Paper", "link": "https://example.com/good"}]
             return mock_feed
 
         monkeypatch.setattr("evo_flywheel.collectors.orchestrator.fetch_rss_feed", mock_fetch_rss)
@@ -135,7 +135,7 @@ class TestCollectFromAllSources:
 
         # Arrange
         # Mock bioRxiv
-        def mock_biorxiv(start, end):
+        def mock_biorxiv(start, end, category):
             return [{"title": "BioRxiv Paper", "doi": "10.1101/2024.12.28.999999"}]
 
         monkeypatch.setattr(
@@ -164,7 +164,7 @@ class TestCollectFromAllSources:
 
         # Arrange
         # Mock bioRxiv
-        def mock_biorxiv(start, end):
+        def mock_biorxiv(start, end, category):
             return [
                 {"title": "Shared Paper", "doi": "10.1101/2024.12.28.123456"},
                 {"title": "BioRxiv Only", "doi": "10.1101/2024.12.28.111111"},
