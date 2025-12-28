@@ -313,6 +313,7 @@ def main() -> None:
         evo-analyze               # 分析未分析的论文
         evo-analyze --max 50      # 最多分析 50 篇
         evo-analyze --embed-only  # 只生成向量
+        evo-analyze --help        # 显示帮助信息
     """
     # 解析参数
     args = sys.argv[1:]
@@ -322,7 +323,25 @@ def main() -> None:
 
     i = 0
     while i < len(args):
-        if args[i] == "--max" and i + 1 < len(args):
+        if args[i] in ("--help", "-h"):
+            print("""
+evo-analyze - AI 分析和向量化工具
+
+用法:
+  evo-analyze [选项]
+
+选项:
+  --max N              最多处理的论文数量
+  --embed-only         只生成向量，不进行 AI 分析
+  --help, -h           显示此帮助信息
+
+示例:
+  evo-analyze               # 分析所有未分析的论文
+  evo-analyze --max 50      # 最多分析 50 篇
+  evo-analyze --embed-only  # 只生成向量
+""")
+            return
+        elif args[i] == "--max" and i + 1 < len(args):
             max_papers = int(args[i + 1])
             i += 2
         elif args[i] == "--embed-only":
