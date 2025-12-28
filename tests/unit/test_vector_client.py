@@ -37,7 +37,7 @@ def test_add_paper_embedding(temp_chroma_dir, monkeypatch):
 
     monkeypatch.setenv("CHROMA_PERSIST_DIR", str(temp_chroma_dir))
 
-    from evo_flywheel.vector.client import add_paper_embedding
+    from evo_flywheel.vector.client import add_paper_embedding, get_chroma_client
 
     paper_id = 123
     embedding = [0.1] * 384  # 384维向量
@@ -48,14 +48,12 @@ def test_add_paper_embedding(temp_chroma_dir, monkeypatch):
     }
     abstract = "Test abstract"
 
-    # Act
+    # Act - 使用默认 collection
     add_paper_embedding(paper_id, embedding, metadata, abstract)
 
-    # Assert - 验证向量已添加
-    from evo_flywheel.vector.client import get_chroma_client
-
+    # Assert - 验证向量已添加到默认 collection
     client = get_chroma_client()
-    collection = client.get_collection("test_papers")
+    collection = client.get_collection("evolutionary_papers")  # 默认 collection
     count = collection.count()
 
     assert count >= 1
@@ -80,7 +78,7 @@ def test_search_similar_papers(temp_chroma_dir, monkeypatch):
 
     # 添加测试数据
     client = get_chroma_client()
-    collection = client.get_or_create_collection("test_papers")
+    collection = client.get_or_create_collection("evolutionary_papers")
 
     collection.add(
         ids=["1"],
@@ -96,8 +94,12 @@ def test_search_similar_papers(temp_chroma_dir, monkeypatch):
         documents=["Abstract 2"],
     )
 
-    # Act
-    results = search_similar_papers("test_papers", [0.1] * 384, n_results=2)
+    # Act - 正确的参数顺序
+    results = search_similar_papers(
+        query_embedding=[0.1] * 384,
+        n_results=2,
+        collection_name="evolutionary_papers",
+    )
 
     # Assert
     assert results is not None
