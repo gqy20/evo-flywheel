@@ -55,6 +55,16 @@ class Settings(BaseSettings):
         description="报告输出目录",
     )
 
+    # Embedding API 配置
+    embedding_api_url: str = Field(
+        default="",
+        description="Embedding API URL",
+    )
+    embedding_api_key: str = Field(
+        default="",
+        description="Embedding API 密钥",
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
