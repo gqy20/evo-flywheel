@@ -4,6 +4,7 @@ from unittest import mock
 
 import feedparser
 import pytest
+
 from evo_flywheel.collectors.rss import (
     fetch_rss_feed,
     parse_entry,
@@ -150,7 +151,7 @@ class TestParseEntry:
         entry = feedparser.FeedParserDict(
             {
                 "title": "Multi-author Paper",
-                "author": "Smith, J., Doe, A., Johnson, B.",
+                "author": "Smith, J.; Doe, A.; Johnson, B.",
                 "link": "https://example.com/paper",
             }
         )
