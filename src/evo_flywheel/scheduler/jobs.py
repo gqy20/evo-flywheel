@@ -10,6 +10,8 @@ from typing import Any
 
 import yaml
 from apscheduler.schedulers.background import BackgroundScheduler
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 
 from evo_flywheel.collectors.orchestrator import collect_from_all_sources
 from evo_flywheel.logging import get_logger
@@ -98,11 +100,76 @@ def collect_daily_papers(
         )
 
         logger.info(f"Daily collection completed: {len(papers)} papers collected")
+
+        # 保存到数据库
+        if papers:
+            _save_papers_to_db(papers)
+
         return papers
 
     except Exception as e:
         logger.error(f"Daily collection failed: {e}")
         return []
+
+
+def _save_papers_to_db(papers: list[dict[str, Any]]) -> int:
+    """保存论文到数据库
+
+    Args:
+        papers: 论文列表
+
+    Returns:
+        int: 实际保存的论文数量
+    """
+    from evo_flywheel.config import get_settings
+    from evo_flywheel.db import crud
+    from evo_flywheel.db.models import Paper
+
+    settings = get_settings()
+    engine = create_engine(settings.database_url)
+
+    saved_count = 0
+    skipped_count = 0
+
+    with Session(engine) as session:
+        for paper_data in papers:
+            try:
+                # 检查是否已存在（通过 DOI 或 URL）
+                existing = None
+                if paper_data.get("doi"):
+                    existing = crud.get_paper_by_doi(session, paper_data["doi"])
+                elif paper_data.get("url"):
+                    # 从 URL 提取 ID 作为唯一标识
+                    existing = session.query(Paper).filter(Paper.url == paper_data["url"]).first()
+
+                if existing:
+                    skipped_count += 1
+                    continue
+
+                # 创建新论文记录
+                crud.create_paper(
+                    session,
+                    title=paper_data.get("title", ""),
+                    doi=paper_data.get("doi"),
+                    authors=paper_data.get("authors", []),
+                    abstract=paper_data.get("abstract"),
+                    url=paper_data.get("url"),
+                    publication_date=paper_data.get("publication_date"),
+                    journal=paper_data.get("journal"),
+                    source=paper_data.get("source"),
+                )
+                saved_count += 1
+
+            except Exception as e:
+                logger.error(f"Failed to save paper: {paper_data.get('title', 'Unknown')}: {e}")
+                continue
+
+        session.commit()
+        logger.info(
+            f"Saved {saved_count} new papers to database (skipped {skipped_count} duplicates)"
+        )
+
+    return saved_count
 
 
 def schedule_daily_collection(hour: int = 9, minute: int = 0) -> BackgroundScheduler:
