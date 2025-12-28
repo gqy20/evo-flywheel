@@ -35,6 +35,7 @@ dependencies = [
 
     # LLM
     "zhipuai>=2.1.0",
+    "openai>=1.0.0",
 
     # Embedding API (远程服务，无需本地模型)
     # 使用 OpenAI embeddings 或其他远程 API
