@@ -33,21 +33,21 @@ sources:
     name: Methods in Ecology & Evolution
     url: https://besjournals.onlinelibrary.wiley.com/rss/journal/2041210X
     priority: 4
-    enabled: true
+    enabled: false  # Wiley 需要 OIDC 认证，暂时禁用
 
   mol_ecology:
     type: rss
     name: Molecular Ecology
     url: https://onlinelibrary.wiley.com/rss/journal/1365294X
     priority: 5
-    enabled: true
+    enabled: false  # Wiley 需要 OIDC 认证，暂时禁用
 
   evolution:
     type: rss
     name: Evolution
     url: https://academic.oup.com/evolut/rss
     priority: 6
-    enabled: true
+    enabled: false  # OUP RSS 返回 404，暂时禁用
 
   plos_biology:
     type: rss
