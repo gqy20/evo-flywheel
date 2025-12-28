@@ -7,7 +7,7 @@ class TestSearchPageRendering:
     def test_search_page_has_render_function(self):
         """测试搜索页有 render 函数"""
         # Arrange & Act
-        from evo_flywheel.web.pages import search
+        from evo_flywheel.web.views import search
 
         # Assert
         assert hasattr(search, "render")
@@ -16,7 +16,7 @@ class TestSearchPageRendering:
     def test_search_page_has_search_input(self):
         """测试搜索页有搜索输入框"""
         # Arrange & Act
-        from evo_flywheel.web.pages import search
+        from evo_flywheel.web.views import search
 
         # Assert
         assert hasattr(search, "render_search_input")
@@ -25,7 +25,7 @@ class TestSearchPageRendering:
     def test_search_page_has_results_section(self):
         """测试搜索页有结果区域"""
         # Arrange & Act
-        from evo_flywheel.web.pages import search
+        from evo_flywheel.web.views import search
 
         # Assert
         assert hasattr(search, "render_search_results")
@@ -34,7 +34,7 @@ class TestSearchPageRendering:
     def test_search_page_has_similar_papers_section(self):
         """测试搜索页有相似论文区域"""
         # Arrange & Act
-        from evo_flywheel.web.pages import search
+        from evo_flywheel.web.views import search
 
         # Assert
         assert hasattr(search, "render_similar_papers")
@@ -47,7 +47,7 @@ class TestSearchPageInput:
     def test_search_accepts_text_input(self):
         """测试搜索接受文本输入"""
         # Arrange & Act
-        from evo_flywheel.web.pages import search
+        from evo_flywheel.web.views import search
 
         # Assert
         assert callable(search.render_search_input)
@@ -55,7 +55,7 @@ class TestSearchPageInput:
     def test_search_has_filter_options(self):
         """测试搜索有筛选选项"""
         # Arrange & Act
-        from evo_flywheel.web.pages import search
+        from evo_flywheel.web.views import search
 
         # Assert
         assert callable(search.render_search_input)
@@ -67,7 +67,7 @@ class TestSearchPageStructure:
     def test_has_default_n_results_constant(self):
         """测试有默认结果数量常量"""
         # Arrange & Act
-        from evo_flywheel.web.pages import search
+        from evo_flywheel.web.views import search
 
         # Assert
         assert hasattr(search, "DEFAULT_N_RESULTS")
