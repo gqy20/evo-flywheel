@@ -6,7 +6,7 @@ Evo-Flywheel Web 界面入口
 import streamlit as st
 
 from evo_flywheel.logging import get_logger
-from evo_flywheel.web.pages import home, list
+from evo_flywheel.web.pages import home, list, search
 
 logger = get_logger(__name__)
 
@@ -51,7 +51,7 @@ def main() -> None:
         pages = {
             "🏠 首页": home.render,
             "📚 文献列表": list.render,
-            "🔍 语义搜索": lambda: st.info("语义搜索页开发中..."),
+            "🔍 语义搜索": search.render,
             "📄 论文详情": lambda: st.info("论文详情页开发中..."),
             "📊 报告生成": lambda: st.info("报告生成页开发中..."),
         }
