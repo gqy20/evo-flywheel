@@ -8,6 +8,9 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from evo_flywheel.db.models import DailyReport, Feedback, Paper
+from evo_flywheel.logging import get_logger
+
+logger = get_logger(__name__)
 
 # ============================================================================
 # Paper CRUD

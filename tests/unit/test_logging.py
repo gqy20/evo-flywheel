@@ -93,6 +93,9 @@ class TestLoggingInitialization:
 
         log_capture = io.StringIO()
         handler = logging.StreamHandler(log_capture)
+        handler.setFormatter(
+            logging.Formatter("[%(asctime)s] %(levelname)-8s [%(name)s:%(lineno)d] %(message)s")
+        )
         logger.addHandler(handler)
 
         logger.info("test message")

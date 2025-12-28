@@ -9,6 +9,9 @@ from typing import Any
 import chromadb
 
 from evo_flywheel.config import get_settings
+from evo_flywheel.logging import get_logger
+
+logger = get_logger(__name__)
 
 # 全局 Chroma 客户端实例
 _chroma_client: chromadb.ClientAPI | None = None
@@ -35,6 +38,7 @@ def get_chroma_client() -> chromadb.ClientAPI:
         persist_dir.mkdir(parents=True, exist_ok=True)
 
         # 创建持久化 Chroma 客户端 (新 API)
+        logger.debug(f"初始化 Chroma 客户端: {persist_dir}")
         _chroma_client = chromadb.PersistentClient(path=str(persist_dir))
 
     return _chroma_client

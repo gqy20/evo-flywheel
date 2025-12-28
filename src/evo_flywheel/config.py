@@ -42,6 +42,22 @@ class Settings(BaseSettings):
         default="INFO",
         description="日志级别",
     )
+    log_file: str = Field(
+        default="logs/evo_flywheel.log",
+        description="日志文件路径",
+    )
+    log_max_bytes: int = Field(
+        default=10 * 1024 * 1024,  # 10MB
+        description="日志文件最大大小（字节）",
+    )
+    log_backup_count: int = Field(
+        default=5,
+        description="保留的日志备份文件数量",
+    )
+    log_json_format: bool = Field(
+        default=False,
+        description="是否使用 JSON 格式日志",
+    )
 
     # RSS 配置
     rss_sources_path: str = Field(
@@ -105,6 +121,7 @@ def ensure_directories() -> None:
         Path(settings.reports_dir),
         Path(settings.chroma_persist_dir),
         Path(settings.rss_sources_path).parent,
+        Path(settings.log_file).parent,  # logs 目录
     ]
     for directory in directories:
         directory.mkdir(parents=True, exist_ok=True)
