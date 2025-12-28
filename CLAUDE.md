@@ -13,7 +13,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - ✅ 数据库模型 (SQLite + Chroma)
 - ✅ CRUD 操作模块
 - ✅ 单元测试框架
-- 🔄 进入里程碑 2 (数据采集层)
+
+**里程碑 2 (v0.2.0 - 数据采集层) 即将完成** 🔄
+- ✅ RSS 采集器 (feedparser)
+- ✅ bioRxiv API 采集器
+- ✅ 数据去重模块 (DOI + title)
+- ✅ 采集编排器 (orchestrator)
+- ✅ 定时调度器 (APScheduler)
+- ✅ CLI 工具 (evo-fetch, evo-init)
+- 🔄 进入里程碑 3 (LLM 分析层)
 
 ---
 
@@ -68,10 +76,15 @@ evo-flywheel/
 │       │   └── init.py        # 数据库初始化脚本
 │       ├── vector/           # Chroma integration ✅
 │       │   └── client.py      # Chroma PersistentClient
-│       ├── collectors/       # RSS/API data collection (待开发)
+│       ├── collectors/       # RSS/API data collection ✅
+│       │   ├── rss.py         # RSS feed parser
+│       │   ├── biorxiv.py     # bioRxiv API client
+│       │   ├── dedup.py       # Deduplication logic
+│       │   └── orchestrator.py # Multi-source coordinator
+│       ├── scheduler/        # APScheduler tasks ✅
+│       │   └── jobs.py        # Daily collection jobs
 │       ├── analyzers/        # LLM paper analysis (待开发)
 │       ├── reporters/        # Daily report generation (待开发)
-│       ├── scheduler/        # APScheduler tasks (待开发)
 │       └── web/              # Streamlit UI (待开发)
 ├── tests/
 │   ├── __init__.py
@@ -113,7 +126,13 @@ uv pip install -e ".[dev]"       # 安装项目（开发模式，含所有依赖
 pre-commit install                # 安装 Git hooks
 
 # 初始化数据库
+evo-init                        # 使用 CLI 工具
+# 或
 uv run python -m src.evo_flywheel.db.init
+
+# 数据采集
+evo-fetch                       # 执行一次采集 (默认最近7天)
+evo-fetch --schedule            # 启动定时调度器 (每日 9:00)
 
 # 代码检查和格式化 (ruff)
 ruff check .                    # 检查代码
@@ -264,7 +283,7 @@ See `docs/ROADMAP.md` for detailed 6-phase development plan (2-3 weeks MVP):
 
 1. **Phase 0**: Project initialization (0.5d) ✅ 完成
 2. **Phase 1**: Data layer - SQLite + Chroma setup (2d) ✅ 完成
-3. **Phase 2**: Collection layer - RSS + bioRxiv API (2d) 🔄 进行中
+3. **Phase 2**: Collection layer - RSS + bioRxiv API (2d) ✅ 完成
 4. **Phase 3**: Analysis layer - LLM integration (2d)
 5. **Phase 4**: Search layer - Embeddings + semantic search (1.5d)
 6. **Phase 5**: Presentation layer - Streamlit UI (3d)
@@ -278,6 +297,13 @@ See `docs/ROADMAP.md` for detailed 6-phase development plan (2-3 weeks MVP):
 - Issue #3: Chroma集成 ✅
 - Issue #4: 单元测试框架 ✅
 - Issue #5: 数据库CRUD测试 ✅
+
+**v0.2.0 - 数据采集层** (即将完成)
+- RSS feed parser with advanced DOI extraction
+- bioRxiv API client (avoiding Cloudflare)
+- Cross-source deduplication (DOI + title normalization)
+- Multi-source orchestrator with graceful error handling
+- APScheduler with CLI entry points (`evo-fetch`, `evo-init`)
 
 ---
 

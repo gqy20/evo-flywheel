@@ -8,9 +8,15 @@ from evo_flywheel.config import Settings, ensure_directories, get_project_root, 
 class TestSettings:
     """Settings 配置类测试"""
 
-    def test_settings_default_values_no_env(self):
+    def test_settings_default_values_no_env(self, monkeypatch):
         """测试配置默认值（不读取 .env 文件）"""
-        # Arrange & Act - 使用 _env_file=None 禁用 .env 文件读取
+        # Arrange - 清除可能影响测试的环境变量
+        monkeypatch.delenv("CHROMA_PERSIST_DIR", raising=False)
+        monkeypatch.delenv("DATABASE_URL", raising=False)
+        monkeypatch.delenv("LOG_LEVEL", raising=False)
+        monkeypatch.delenv("REPORTS_DIR", raising=False)
+
+        # Act - 使用 _env_file=None 禁用 .env 文件读取
         settings = Settings(_env_file=None)
 
         # Assert
@@ -34,9 +40,12 @@ class TestSettings:
         assert settings.log_level == "DEBUG"
         assert settings.zhipu_api_key == "test-key-123"
 
-    def test_settings_from_env_file(self, tmp_path):
+    def test_settings_from_env_file(self, tmp_path, monkeypatch):
         """测试从 .env 文件加载配置"""
-        # Arrange
+        # Arrange - 清除环境变量
+        monkeypatch.delenv("DATABASE_URL", raising=False)
+        monkeypatch.delenv("LOG_LEVEL", raising=False)
+
         env_file = tmp_path / ".env"
         env_file.write_text("DATABASE_URL=sqlite:///env_test.db\nLOG_LEVEL=WARNING\n")
 
