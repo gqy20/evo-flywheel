@@ -1,7 +1,7 @@
 """SQLAlchemy 数据库模型定义"""
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import (
@@ -50,7 +50,7 @@ class Paper(Base):
     embedding_id = Column(Text)  # Chroma中的ID (与id相同)
     embedded = Column(Boolean, default=False)  # 是否已生成向量
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
         return f"<Paper(id={self.id}, title='{self.title[:30]}...')>"
@@ -106,7 +106,7 @@ class DailyReport(Base):
     high_value_papers = Column(Integer)
     top_paper_ids = Column(Text)  # 存储为逗号分隔的ID
     report_content = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
         return f"<DailyReport(date={self.report_date}, total={self.total_papers})>"
@@ -134,7 +134,7 @@ class Feedback(Base):
     rating = Column(Integer)  # 1-5 分
     is_helpful = Column(Boolean)
     comment = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     # 关系
     paper = relationship("Paper", backref="feedbacks")
@@ -159,7 +159,7 @@ class RSSSource(Base):
     priority = Column(Integer)
     enabled = Column(Boolean, default=True)
     last_fetch = Column(DateTime)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
         return f"<RSSSource(id={self.id}, name='{self.name}', enabled={self.enabled})>"
