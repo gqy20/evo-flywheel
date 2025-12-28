@@ -5,8 +5,6 @@
 
 from unittest import mock
 
-import pytest
-
 
 class TestVectorSearchIntegration:
     """向量搜索集成测试"""
@@ -91,7 +89,7 @@ class TestVectorSearchIntegration:
         # Act
         from evo_flywheel.vector.search import semantic_search_by_text
 
-        results = semantic_search_by_text("test", min_score=80)
+        semantic_search_by_text("test", min_score=80)
 
         # Assert - 验证 Chroma 被调用时包含 min_score 过滤
         mock_collection.query.assert_called_once()
@@ -329,9 +327,7 @@ class TestVectorSearchAccuracy:
         # Act
         from evo_flywheel.vector.hybrid import hybrid_search_by_text
 
-        results = hybrid_search_by_text(
-            query_vector, taxa="Homo sapiens", min_score=80, journal="Nature"
-        )
+        hybrid_search_by_text(query_vector, taxa="Homo sapiens", min_score=80, journal="Nature")
 
         # Assert - 验证所有过滤条件都被传递
         call_kwargs = mock_get_papers.call_args.kwargs
