@@ -45,6 +45,9 @@ uv venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 uv pip install -e ".[dev]"
 
+# 安装 pre-commit hooks (TDD 必备)
+pre-commit install
+
 # 配置环境变量
 cp .env.example .env
 # 编辑 .env 填入 ZHIPU_API_KEY (智谱AI API密钥)

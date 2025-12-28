@@ -115,6 +115,9 @@ uv venv                          # 创建虚拟环境
 source .venv/bin/activate         # 激活环境 (Windows: .venv\Scripts\activate)
 uv pip install -e ".[dev]"       # 安装项目（开发模式，含所有依赖）
 
+# 安装 pre-commit hooks
+pre-commit install                # 安装 Git hooks
+
 # 运行 Streamlit Web 界面
 streamlit run src/evo_flywheel/web/app.py
 
@@ -126,6 +129,9 @@ ruff check .                    # 检查代码
 ruff check . --fix              # 检查并自动修复
 ruff format .                   # 格式化代码
 ruff format --check .           # 检查格式（CI用）
+
+# 手动运行 pre-commit
+pre-commit run --all-files      # 检查所有文件
 
 # 运行测试
 pytest                          # 运行所有测试
@@ -142,6 +148,12 @@ python -m src.evo_flywheel.scheduler.jobs
 - ✅ 统一的依赖解析
 - ✅ 更好的锁文件支持
 - ✅ 现代化的 Python 工具链
+
+**Pre-commit Hooks:**
+- 自动运行 ruff lint 和 format
+- 检查 YAML/TOML 语法
+- 安全检查 (bandit)
+- 跳过 hook: `git commit --no-verify`
 
 ---
 

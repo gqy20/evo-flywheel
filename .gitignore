@@ -19,12 +19,21 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+.pytest_cache/
+.coverage
+htmlcov/
 
 # Virtual Environment
 venv/
 env/
 ENV/
 .venv
+
+# uv
+uv.lock
+
+# Pre-commit
+.pre-commit-cache/
 
 # IDE
 .vscode/
