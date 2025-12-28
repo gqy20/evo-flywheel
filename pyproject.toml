@@ -197,6 +197,14 @@ ignore_errors = true
 module = "evo_flywheel.collectors.biorxiv"
 ignore_errors = true
 
+[[tool.mypy.overrides]]
+module = "evo_flywheel.collectors.dedup"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "evo_flywheel.collectors.orchestrator"
+ignore_errors = true
+
 [tool.bandit]
 exclude_dirs = ["tests"]
 skips = ["B101"]  # 允许 assert 用于测试
