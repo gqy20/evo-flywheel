@@ -25,7 +25,7 @@ class TestFetchRSSFeed:
             b"<rss><channel><item><title>Test Paper</title></item></channel></rss>"
         )
 
-        def mock_get(url, timeout):
+        def mock_get(url, timeout, headers=None):
             return mock_response
 
         monkeypatch.setattr("requests.get", mock_get)
@@ -41,7 +41,7 @@ class TestFetchRSSFeed:
         """测试获取无效的 RSS feed"""
 
         # Arrange
-        def mock_get(url, timeout):
+        def mock_get(url, timeout, headers=None):
             raise Exception("Network error")
 
         monkeypatch.setattr("requests.get", mock_get)
@@ -54,7 +54,7 @@ class TestFetchRSSFeed:
         """测试 RSS feed 获取超时"""
 
         # Arrange
-        def mock_get(url, timeout):
+        def mock_get(url, timeout, headers=None):
             raise TimeoutError("Request timeout")
 
         monkeypatch.setattr("requests.get", mock_get)
