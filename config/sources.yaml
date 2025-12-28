@@ -1,0 +1,64 @@
+# RSS 源配置
+# 进化生物学相关期刊和预印本
+
+sources:
+  # 预印本 (API方式)
+  biorxiv_api:
+    type: api
+    name: bioRxiv Evolutionary Biology
+    url: https://api.biorxiv.org/details/biorxiv/{start}/{end}
+    params:
+      category: evolutionary_biology
+      format: json
+    priority: 1
+    enabled: true
+
+  arxiv_pe:
+    type: rss
+    name: arXiv Populations & Evolution
+    url: https://export.arxiv.org/rss/q-bio.PE
+    priority: 2
+    enabled: true
+
+  # 核心期刊
+  plos_compbio:
+    type: rss
+    name: PLOS Computational Biology
+    url: https://journals.plos.org/ploscompbiol/feed/atom
+    priority: 3
+    enabled: true
+
+  methods_eecol:
+    type: rss
+    name: Methods in Ecology & Evolution
+    url: https://besjournals.onlinelibrary.wiley.com/rss/journal/2041210X
+    priority: 4
+    enabled: true
+
+  mol_ecology:
+    type: rss
+    name: Molecular Ecology
+    url: https://onlinelibrary.wiley.com/rss/journal/1365294X
+    priority: 5
+    enabled: true
+
+  evolution:
+    type: rss
+    name: Evolution
+    url: https://academic.oup.com/evolut/rss
+    priority: 6
+    enabled: true
+
+  plos_biology:
+    type: rss
+    name: PLOS Biology
+    url: https://journals.plos.org/plosbiology/feed/atom
+    priority: 7
+    enabled: true
+
+  nature:
+    type: rss
+    name: Nature
+    url: https://www.nature.com/nature.rss
+    priority: 8
+    enabled: true
