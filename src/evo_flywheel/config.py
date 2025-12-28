@@ -27,10 +27,14 @@ class Settings(BaseSettings):
         description="Chroma 向量数据库持久化目录",
     )
 
-    # LLM API 配置
-    zhipu_api_key: str = Field(
+    # LLM API 配置 (OpenAI 兼容)
+    openai_api_key: str = Field(
         default="",
-        description="智谱 AI API 密钥",
+        description="OpenAI 兼容 API 密钥（智谱/通义等）",
+    )
+    openai_base_url: str = Field(
+        default="",
+        description="OpenAI 兼容 API Base URL",
     )
 
     # 日志配置

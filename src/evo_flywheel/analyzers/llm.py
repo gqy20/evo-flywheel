@@ -51,15 +51,15 @@ def get_openai_client() -> OpenAI:
     settings = get_settings()
 
     # 检查是否配置了 OpenAI 兼容的 API
-    api_key = getattr(settings, "zhipu_api_key", "")
+    api_key = getattr(settings, "openai_api_key", "")
     base_url = getattr(settings, "openai_base_url", None)
 
     if not api_key:
-        raise ValueError("未配置 API 密钥，请设置 ZHIPU_API_KEY 环境变量")
+        raise ValueError("未配置 API 密钥，请设置 OPENAI_API_KEY 环境变量")
 
     return OpenAI(
         api_key=api_key,
-        base_url=base_url,
+        base_url=base_url if base_url else None,
     )
 
 
