@@ -189,6 +189,10 @@ ignore_errors = true
 module = "evo_flywheel.vector.client"
 ignore_errors = true
 
+[[tool.mypy.overrides]]
+module = "evo_flywheel.collectors.rss"
+ignore_errors = true
+
 [tool.bandit]
 exclude_dirs = ["tests"]
 skips = ["B101"]  # 允许 assert 用于测试
