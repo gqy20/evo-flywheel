@@ -73,8 +73,8 @@ Repository = "https://github.com/gqy20/evo-flywheel"
 Issues = "https://github.com/gqy20/evo-flywheel/issues"
 
 [project.scripts]
-evo-fetch = "src.evo_flywheel.scheduler.jobs:main"
-evo-init = "src.evo_flywheel.db.init:main"
+evo-fetch = "evo_flywheel.scheduler.jobs:main"
+evo-init = "evo_flywheel.db.init:main"
 
 # Build system
 [build-system]
