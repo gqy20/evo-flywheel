@@ -66,14 +66,16 @@ class TestGetUnanalyzedPapers:
     def test_get_unanalyzed_papers_with_max_papers_limit(self, monkeypatch):
         """测试 max_papers 参数限制返回数量"""
         # Arrange
-        mock_db_result = [
-            (i, f"Paper {i}", f"Abstract {i}", f"10.1234/test.{i:03d}", "", "") for i in range(100)
-        ]
+        captured_limit = {"value": None}
 
-        mock_result = mock.Mock()
-        mock_result.__iter__ = lambda self: iter(mock_db_result)
+        def mock_execute(query, params):
+            captured_limit["value"] = params.get("limit")
+            mock_result = mock.Mock()
+            mock_result.__iter__ = lambda self: iter([])
+            return mock_result
+
         mock_session = mock.Mock()
-        mock_session.execute.return_value = mock_result
+        mock_session.execute = mock_execute
         mock_session.__enter__ = mock.Mock(return_value=mock_session)
         mock_session.__exit__ = mock.Mock(return_value=False)
 
@@ -89,10 +91,10 @@ class TestGetUnanalyzedPapers:
         # Act
         from evo_flywheel.scheduler.analysis import _get_unanalyzed_papers
 
-        papers = _get_unanalyzed_papers(max_papers=10)
+        _get_unanalyzed_papers(max_papers=10)
 
-        # Assert
-        assert len(papers) == 10
+        # Assert - 验证 SQL LIMIT 参数正确
+        assert captured_limit["value"] == 10
 
     def test_get_unanalyzed_papers_returns_empty_list_when_no_papers(self, monkeypatch):
         """测试数据库中没有未分析论文时返回空列表"""
@@ -317,7 +319,7 @@ class TestAnalyzeUnanalyzedPapers:
 
         call_log = []
 
-        def mock_get_unanalyzed(max_papers=None):
+        def mock_get_unanalyzed(max_papers=None, min_score=0):
             call_log.append(("get_unanalyzed", max_papers))
             return unanalyzed_papers
 
@@ -358,7 +360,7 @@ class TestAnalyzeUnanalyzedPapers:
         """测试没有论文时返回零"""
 
         # Arrange
-        def mock_get_unanalyzed(max_papers=None):
+        def mock_get_unanalyzed(max_papers=None, min_score=0):
             return []
 
         monkeypatch.setattr(

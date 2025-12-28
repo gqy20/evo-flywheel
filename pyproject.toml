@@ -74,6 +74,7 @@ Issues = "https://github.com/gqy20/evo-flywheel/issues"
 
 [project.scripts]
 evo-fetch = "evo_flywheel.scheduler.jobs:main"
+evo-analyze = "evo_flywheel.scheduler.analysis:main"
 evo-init = "evo_flywheel.db.init:main"
 
 # Build system
