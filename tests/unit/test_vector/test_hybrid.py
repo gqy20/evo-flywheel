@@ -6,6 +6,7 @@
 from unittest import mock
 
 import pytest
+
 from evo_flywheel.vector.hybrid import hybrid_search_by_text
 
 
@@ -16,11 +17,9 @@ class TestHybridSearchByVector:
         """测试混合搜索先用 SQLite 过滤"""
         # Arrange - 模拟 SQLite 返回过滤后的 paper_ids
         mock_filtered_ids = [1, 2, 3, 4, 5]
+        mock_get_papers = mock.Mock(return_value=[mock.Mock(id=i) for i in mock_filtered_ids])
 
-        monkeypatch.setattr(
-            "evo_flywheel.vector.hybrid.crud.get_papers",
-            lambda **kw: [mock.Mock(id=i) for i in mock_filtered_ids],
-        )
+        monkeypatch.setattr("evo_flywheel.vector.hybrid.crud.get_papers", mock_get_papers)
 
         # 模拟 Chroma 语义搜索结果（应该只在这 5 个 paper 中搜索）
         mock_collection = mock.Mock()
@@ -42,10 +41,8 @@ class TestHybridSearchByVector:
         hybrid_search_by_text(query_vector, taxa="Drosophila")
 
         # Assert - 验证 SQLite 被调用过滤
-        import evo_flywheel.vector.hybrid as hybrid_module
-
-        hybrid_module.crud.get_papers.assert_called_once()
-        call_kwargs = hybrid_module.crud.get_papers.call_args.kwargs
+        mock_get_papers.assert_called_once()
+        call_kwargs = mock_get_papers.call_args.kwargs
         assert call_kwargs["taxa"] == "Drosophila"
 
         # Assert - 验证 Chroma 只在过滤后的 IDs 中搜索
@@ -57,11 +54,9 @@ class TestHybridSearchByVector:
         """测试混合搜索支持多个过滤条件"""
         # Arrange
         mock_filtered_ids = [10, 20, 30]
+        mock_get_papers = mock.Mock(return_value=[mock.Mock(id=i) for i in mock_filtered_ids])
 
-        monkeypatch.setattr(
-            "evo_flywheel.vector.hybrid.crud.get_papers",
-            lambda **kw: [mock.Mock(id=i) for i in mock_filtered_ids],
-        )
+        monkeypatch.setattr("evo_flywheel.vector.hybrid.crud.get_papers", mock_get_papers)
 
         mock_collection = mock.Mock()
         mock_collection.query.return_value = {
@@ -82,9 +77,7 @@ class TestHybridSearchByVector:
         hybrid_search_by_text(query_vector, taxa="Homo sapiens", min_score=80, journal="Nature")
 
         # Assert
-        import evo_flywheel.vector.hybrid as hybrid_module
-
-        call_kwargs = hybrid_module.crud.get_papers.call_args.kwargs
+        call_kwargs = mock_get_papers.call_args.kwargs
         assert call_kwargs["taxa"] == "Homo sapiens"
         assert call_kwargs["min_importance_score"] == 80
         assert call_kwargs["journal"] == "Nature"
@@ -203,10 +196,8 @@ class TestHybridSearchBehavior:
     def test_hybrid_search_passes_date_range_filter(self, monkeypatch):
         """测试混合搜索传递日期范围过滤"""
         # Arrange
-        monkeypatch.setattr(
-            "evo_flywheel.vector.hybrid.crud.get_papers",
-            lambda **kw: [mock.Mock(id=1)],
-        )
+        mock_get_papers = mock.Mock(return_value=[mock.Mock(id=1)])
+        monkeypatch.setattr("evo_flywheel.vector.hybrid.crud.get_papers", mock_get_papers)
 
         mock_collection = mock.Mock()
         mock_collection.query.return_value = {
@@ -227,9 +218,7 @@ class TestHybridSearchBehavior:
         hybrid_search_by_text(query_vector, date_from="2024-01-01", date_to="2024-12-31")
 
         # Assert
-        import evo_flywheel.vector.hybrid as hybrid_module
-
-        call_kwargs = hybrid_module.crud.get_papers.call_args.kwargs
+        call_kwargs = mock_get_papers.call_args.kwargs
         assert call_kwargs["date_from"] == "2024-01-01"
         assert call_kwargs["date_to"] == "2024-12-31"
 
@@ -338,10 +327,8 @@ class TestHybridSearchOptimization:
     def test_hybrid_search_limits_sqlite_results(self, monkeypatch):
         """测试 SQLite 限制返回数量"""
         # Arrange
-        monkeypatch.setattr(
-            "evo_flywheel.vector.hybrid.crud.get_papers",
-            lambda **kw: [mock.Mock(id=i) for i in range(100)],
-        )
+        mock_get_papers = mock.Mock(return_value=[mock.Mock(id=i) for i in range(100)])
+        monkeypatch.setattr("evo_flywheel.vector.hybrid.crud.get_papers", mock_get_papers)
 
         mock_collection = mock.Mock()
         mock_collection.query.return_value = {
@@ -362,9 +349,7 @@ class TestHybridSearchOptimization:
         hybrid_search_by_text(query_vector)
 
         # Assert - SQLite 应该有合理的 limit
-        import evo_flywheel.vector.hybrid as hybrid_module
-
-        call_kwargs = hybrid_module.crud.get_papers.call_args.kwargs
+        call_kwargs = mock_get_papers.call_args.kwargs
         assert "limit" in call_kwargs
         assert call_kwargs["limit"] <= 500  # 最多 500 条
 
