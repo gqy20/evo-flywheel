@@ -3,6 +3,7 @@
 from unittest import mock
 
 import pytest
+
 from evo_flywheel.vector.storage import (
     rebuild_paper_embeddings,
     store_paper_embedding,
@@ -31,7 +32,7 @@ class TestStorePaperEmbedding:
         # 模拟 Chroma collection
         mock_collection = mock.Mock()
         monkeypatch.setattr(
-            "evo_flywheel.vector.storage.get_or_create_collection",
+            "evo_flywheel.vector.client.get_or_create_collection",
             lambda **kw: mock_collection,
         )
 
@@ -66,9 +67,21 @@ class TestStorePaperEmbedding:
     def test_store_paper_handles_missing_abstract(self, monkeypatch):
         """测试缺少摘要时的处理"""
         # Arrange
+        mock_response = mock.Mock()
+        mock_response.json.return_value = {"data": [{"embedding": [0.1]}]}
+        mock_response.raise_for_status = mock.Mock()
+
+        mock_http_client = mock.Mock()
+        mock_http_client.post.return_value = mock_response
+
+        monkeypatch.setattr(
+            "evo_flywheel.vector.embeddings.get_embedding_client",
+            lambda: mock_http_client,
+        )
+
         mock_collection = mock.Mock()
         monkeypatch.setattr(
-            "evo_flywheel.vector.storage.get_or_create_collection",
+            "evo_flywheel.vector.client.get_or_create_collection",
             lambda **kw: mock_collection,
         )
 
@@ -92,7 +105,7 @@ class TestStorePaperEmbedding:
         # Arrange
         mock_collection = mock.Mock()
         monkeypatch.setattr(
-            "evo_flywheel.vector.storage.get_or_create_collection",
+            "evo_flywheel.vector.client.get_or_create_collection",
             lambda **kw: mock_collection,
         )
 
@@ -121,7 +134,7 @@ class TestStorePaperEmbedding:
 
         mock_collection = mock.Mock()
         monkeypatch.setattr(
-            "evo_flywheel.vector.storage.get_or_create_collection",
+            "evo_flywheel.vector.client.get_or_create_collection",
             lambda **kw: mock_collection,
         )
 
@@ -176,7 +189,7 @@ class TestStorePapersBatch:
 
         mock_collection = mock.Mock()
         monkeypatch.setattr(
-            "evo_flywheel.vector.storage.get_or_create_collection",
+            "evo_flywheel.vector.client.get_or_create_collection",
             lambda **kw: mock_collection,
         )
 
@@ -201,7 +214,7 @@ class TestStorePapersBatch:
         # Arrange
         mock_collection = mock.Mock()
         monkeypatch.setattr(
-            "evo_flywheel.vector.storage.get_or_create_collection",
+            "evo_flywheel.vector.client.get_or_create_collection",
             lambda **kw: mock_collection,
         )
 
@@ -219,7 +232,7 @@ class TestStorePapersBatch:
             json_data = kwargs.get("json", {})
             input_text = json_data.get("input", "")
 
-            if "Paper 2" in input_text:
+            if "Abstract 2" in input_text:
                 raise Exception("API Error for Paper 2")
 
             mock_resp = mock.Mock()
@@ -237,7 +250,7 @@ class TestStorePapersBatch:
 
         mock_collection = mock.Mock()
         monkeypatch.setattr(
-            "evo_flywheel.vector.storage.get_or_create_collection",
+            "evo_flywheel.vector.client.get_or_create_collection",
             lambda **kw: mock_collection,
         )
 
@@ -262,7 +275,7 @@ class TestStorePapersBatch:
         mock_collection.get.return_value = ["existing_ids"]  # 已存在
 
         monkeypatch.setattr(
-            "evo_flywheel.vector.storage.get_or_create_collection",
+            "evo_flywheel.vector.client.get_or_create_collection",
             lambda **kw: mock_collection,
         )
 
@@ -301,7 +314,7 @@ class TestRebuildPaperEmbeddings:
 
         mock_collection = mock.Mock()
         monkeypatch.setattr(
-            "evo_flywheel.vector.storage.get_or_create_collection",
+            "evo_flywheel.vector.client.get_or_create_collection",
             lambda **kw: mock_collection,
         )
 
@@ -335,7 +348,7 @@ class TestRebuildPaperEmbeddings:
 
         mock_collection = mock.Mock()
         monkeypatch.setattr(
-            "evo_flywheel.vector.storage.get_or_create_collection",
+            "evo_flywheel.vector.client.get_or_create_collection",
             lambda **kw: mock_collection,
         )
 
@@ -357,9 +370,17 @@ class TestRebuildPaperEmbeddings:
         )
 
         mock_collection = mock.Mock()
+        mock_collection.count.return_value = 5  # 模拟有 5 个现有向量
         monkeypatch.setattr(
-            "evo_flywheel.vector.storage.get_or_create_collection",
+            "evo_flywheel.vector.client.get_or_create_collection",
             lambda **kw: mock_collection,
+        )
+
+        # Mock Chroma client to prevent real delete_collection call
+        mock_chroma_client = mock.Mock()
+        monkeypatch.setattr(
+            "evo_flywheel.vector.client.get_chroma_client",
+            lambda: mock_chroma_client,
         )
 
         mock_response = mock.Mock()
@@ -378,7 +399,7 @@ class TestRebuildPaperEmbeddings:
         result = rebuild_paper_embeddings(clear_existing=True)
 
         # Assert - 应该先删除现有数据
-        mock_collection.delete.assert_called_once()
+        mock_chroma_client.delete_collection.assert_called_once_with(name="evolutionary_papers")
         assert result["total"] == 1
 
 
@@ -387,9 +408,22 @@ class TestStorageErrorHandling:
 
     def test_handles_chroma_connection_error(self, monkeypatch):
         """测试 Chroma 连接错误处理"""
-        # Arrange
+        # Arrange - 需要先 mock Embedding 客户端，否则会先抛出 API key 错误
+        mock_response = mock.Mock()
+        mock_response.json.return_value = {"data": [{"embedding": [0.1]}]}
+        mock_response.raise_for_status = mock.Mock()
+
+        mock_http_client = mock.Mock()
+        mock_http_client.post.return_value = mock_response
+
         monkeypatch.setattr(
-            "evo_flywheel.vector.storage.get_or_create_collection",
+            "evo_flywheel.vector.embeddings.get_embedding_client",
+            lambda: mock_http_client,
+        )
+
+        # Mock Chroma 连接错误
+        monkeypatch.setattr(
+            "evo_flywheel.vector.client.get_or_create_collection",
             lambda **kw: (_ for _ in ()).throw(Exception("Connection error")),
         )
 
@@ -412,7 +446,7 @@ class TestStorageErrorHandling:
 
         mock_collection = mock.Mock()
         monkeypatch.setattr(
-            "evo_flywheel.vector.storage.get_or_create_collection",
+            "evo_flywheel.vector.client.get_or_create_collection",
             lambda **kw: mock_collection,
         )
 
