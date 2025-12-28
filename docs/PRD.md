@@ -425,8 +425,31 @@ def hybrid_search(
 │  调度: APScheduler                          │
 │  RSS解析: feedparser                        │
 │  LLM: 智谱 GLM-4.7                          │
+│  代码检查: ruff (lint + format)             │
+│  包管理: uv (快速安装)                      │
 │                                             │
 └─────────────────────────────────────────────┘
+```
+
+**项目结构 (src layout)**:
+```
+evo-flywheel/
+├── src/
+│   └── evo_flywheel/           # 主包
+│       ├── api/                # FastAPI
+│       ├── db/                 # SQLite
+│       ├── vector/             # Chroma
+│       ├── collectors/         # RSS/API
+│       ├── analyzers/          # GLM-4.7
+│       ├── reporters/          # 报告
+│       ├── scheduler/          # 定时任务
+│       └── web/                # Streamlit
+├── tests/
+│   ├── unit/                   # 单元测试
+│   └── integration/            # 集成测试
+├── config/sources.yaml         # RSS配置
+├── pyproject.toml              # 项目配置
+└── .env.example                # 环境变量
 ```
 
 **双数据库架构**:

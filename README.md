@@ -21,6 +21,8 @@
 嵌入:     sentence-transformers (all-MiniLM-L6-v2)
 分析:     智谱 GLM-4.7
 调度:     APScheduler
+检查:     ruff (lint + format)
+包管理:    uv
 ```
 
 ## 开发状态
@@ -35,42 +37,47 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/yourusername/evo-flywheel.git
+git clone https://github.com/gqy20/evo-flywheel.git
 cd evo-flywheel
 
-# 创建虚拟环境
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# 安装依赖
-pip install -r requirements.txt
+# 使用 uv 创建虚拟环境并安装依赖
+uv venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+uv pip install -e ".[dev]"
 
 # 配置环境变量
 cp .env.example .env
 # 编辑 .env 填入 ZHIPU_API_KEY (智谱AI API密钥)
 
 # 初始化数据库
-python -m src.db.init
+python -m src.evo_flywheel.db.init
 
 # 启动 Web 界面
-streamlit run src/app.py
+streamlit run src/evo_flywheel/web/app.py
 ```
 
-## 项目结构
+## 项目结构 (src layout)
 
 ```
 evo-flywheel/
-├── docs/           # 设计文档
-│   ├── PRD.md      # 产品需求文档
-│   ├── ROADMAP.md  # 开发路线图
-│   └── rss.md      # RSS 期刊源配置
-├── src/            # 源代码 (待开发)
-├── tests/          # 测试 (待开发)
-├── config/         # 配置文件 (待开发)
-├── data/           # 数据文件
-├── reports/        # 生成的每日报告
-├── chroma_db/      # 向量数据库
-└── evo_flywheel.db # SQLite 数据库
+├── src/evo_flywheel/    # 源代码包
+│   ├── api/             # FastAPI endpoints
+│   ├── db/              # SQLite models & CRUD
+│   ├── vector/          # Chroma integration
+│   ├── collectors/      # RSS/API collection
+│   ├── analyzers/       # GLM-4.7 LLM analysis
+│   ├── reporters/       # Report generation
+│   ├── scheduler/       # APScheduler jobs
+│   └── web/             # Streamlit UI
+├── tests/               # 测试 (unit/integration)
+├── config/              # 配置文件
+│   └── sources.yaml     # RSS sources
+├── docs/                # 设计文档
+├── data/                # 数据文件
+├── reports/             # 每日报告
+├── chroma_db/           # 向量数据库
+├── pyproject.toml       # 项目配置
+└── .env.example         # 环境变量模板
 ```
 
 ## 文档

@@ -12,34 +12,6 @@ This project is in the **planning/documentation phase**. No code has been writte
 
 ---
 
-## Development Commands
-
-Since this project is not yet implemented, these are the planned commands based on the PRD:
-
-```bash
-# Environment setup (planned)
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-
-# Run the Streamlit web interface (planned)
-streamlit run src/app.py
-
-# Run FastAPI backend (planned)
-uvicorn src.main:app --reload
-
-# Manual trigger for RSS collection (planned)
-python -m src.tasks.collect
-
-# Run tests (planned)
-pytest tests/
-
-# Initialize database (planned)
-python -m src.db.init
-```
-
----
-
 ## Architecture Overview
 
 ### Dual Database Architecture
@@ -71,28 +43,105 @@ Both databases are linked via `paper_id`. Chroma uses the same ID as SQLite for 
 | LLM | 智谱 GLM-4.7 | Paper analysis (¥0.5/1M input, ¥2/1M output) |
 | Scheduler | APScheduler | Daily automated tasks |
 | RSS Parsing | feedparser | RSS feed parsing |
+| Linting | ruff | Fast Python linter & formatter |
+| Package Manager | uv | Fast Python package installer |
 
-### Planned Directory Structure
+### Planned Directory Structure (src layout)
 
 ```
 evo-flywheel/
 ├── src/
-│   ├── api/           # FastAPI endpoints
-│   ├── db/            # SQLite models and operations
-│   ├── vector/        # Chroma integration
-│   ├── collectors/    # RSS/API data collection
-│   ├── analyzers/     # LLM paper analysis
-│   ├── reporters/     # Daily report generation
-│   ├── scheduler/     # APScheduler tasks
-│   └── app.py         # Streamlit entry point
+│   └── evo_flywheel/         # 主包目录
+│       ├── __init__.py
+│       ├── api/              # FastAPI endpoints
+│       │   ├── __init__.py
+│       │   └── main.py       # FastAPI app
+│       ├── db/               # SQLite models and operations
+│       │   ├── __init__.py
+│       │   ├── models.py      # SQLAlchemy models
+│       │   └── crud.py        # CRUD operations
+│       ├── vector/           # Chroma integration
+│       │   ├── __init__.py
+│       │   └── client.py      # Chroma client
+│       ├── collectors/       # RSS/API data collection
+│       │   ├── __init__.py
+│       │   ├── rss.py
+│       │   └── biorxiv.py
+│       ├── analyzers/        # LLM paper analysis
+│       │   ├── __init__.py
+│       │   ├── prompts.py
+│       │   └── llm.py
+│       ├── reporters/        # Daily report generation
+│       │   ├── __init__.py
+│       │   └── generator.py
+│       ├── scheduler/        # APScheduler tasks
+│       │   ├── __init__.py
+│       │   └── jobs.py
+│       └── web/              # Streamlit UI
+│           ├── __init__.py
+│           └── app.py
 ├── tests/
+│   ├── __init__.py
+│   ├── unit/                 # 单元测试
+│   │   ├── test_db.py
+│   │   ├── test_collectors.py
+│   │   └── ...
+│   ├── integration/          # 集成测试
+│   │   └── test_pipeline.py
+│   └── conftest.py           # pytest fixtures
 ├── config/
-│   └── sources.yaml   # RSS source configurations
-├── data/              # Generated data files
-├── reports/           # Daily markdown reports
-├── chroma_db/         # Vector database storage
-└── evo_flywheel.db    # SQLite database
+│   └── sources.yaml          # RSS source configurations
+├── data/                     # Generated data files
+├── reports/                  # Daily markdown reports
+├── chroma_db/                # Vector database storage
+├── pyproject.toml            # 项目配置 (替代 setup.py)
+├── .env.example              # 环境变量模板
+├── .gitignore
+├── README.md
+└── CLAUDE.md
 ```
+
+**为什么使用 src layout:**
+- ✅ 避免测试时的隐式导入问题
+- ✅ 更清晰的包边界
+- ✅ 更容易打包和发布
+- ✅ Python 官方推荐结构
+
+### Development Commands (src layout + ruff + uv)
+
+```bash
+# 使用 uv 管理环境
+uv venv                          # 创建虚拟环境
+source .venv/bin/activate         # 激活环境 (Windows: .venv\Scripts\activate)
+uv pip install -e ".[dev]"       # 安装项目（开发模式，含所有依赖）
+
+# 运行 Streamlit Web 界面
+streamlit run src/evo_flywheel/web/app.py
+
+# 运行 FastAPI 后端
+uvicorn src.evo_flywheel.api.main:app --reload
+
+# 代码检查和格式化 (ruff)
+ruff check .                    # 检查代码
+ruff check . --fix              # 检查并自动修复
+ruff format .                   # 格式化代码
+ruff format --check .           # 检查格式（CI用）
+
+# 运行测试
+pytest                          # 运行所有测试
+pytest tests/unit/              # 只运行单元测试
+pytest -v                       # 详细输出
+pytest --cov=src/evo_flywheel   # 测试覆盖率
+
+# 手动触发采集
+python -m src.evo_flywheel.scheduler.jobs
+```
+
+**为什么使用 uv:**
+- ✅ 比 pip 快 10-100 倍
+- ✅ 统一的依赖解析
+- ✅ 更好的锁文件支持
+- ✅ 现代化的 Python 工具链
 
 ---
 
