@@ -30,7 +30,7 @@ class TestSettings:
         # Arrange
         monkeypatch.setenv("DATABASE_URL", "sqlite:///test.db")
         monkeypatch.setenv("LOG_LEVEL", "DEBUG")
-        monkeypatch.setenv("ZHIPU_API_KEY", "test-key-123")
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key-123")
 
         # Act
         settings = Settings(_env_file=None)
@@ -38,7 +38,7 @@ class TestSettings:
         # Assert
         assert settings.database_url == "sqlite:///test.db"
         assert settings.log_level == "DEBUG"
-        assert settings.zhipu_api_key == "test-key-123"
+        assert settings.openai_api_key == "test-key-123"
 
     def test_settings_from_env_file(self, tmp_path, monkeypatch):
         """测试从 .env 文件加载配置"""
