@@ -16,7 +16,7 @@
 
 ```
 前端:       Streamlit
-后端:       FastAPI
+后端:       FastAPI (待开发)
 数据库:     SQLite + Chroma (向量)
 嵌入服务:   远程 Embedding API (OpenAI 兼容)
 分析:       智谱 GLM-4.7
@@ -28,18 +28,19 @@
 
 ## 开发状态
 
-> 已完成 Milestone 1-2，正在开发 Milestone 3
+> 已完成 Milestone 1-5，正在开发 Milestone 6
 
 | 里程碑 | 版本 | 状态 | 内容 |
 |--------|------|------|------|
 | M1 | v0.1.0 | ✅ | 基础设施 (数据库、向量库、CRUD、测试) |
 | M2 | v0.2.0 | ✅ | 数据采集层 (RSS、bioRxiv API、去重、编排器、调度器) |
-| M3 | v0.3.0 | 🔄 | LLM 分析层 (论文分析、批量处理) |
-| M4 | v0.4.0 | ⏳ | 搜索层 (嵌入、语义搜索、混合搜索) |
-| M5 | v0.5.0 | ⏳ | Web 界面 (Streamlit) |
-| M6 | v0.6.0 | ⏳ | 测试优化与部署 |
+| M3 | v0.3.0 | ✅ | LLM 分析层 (论文分析、批量处理、提示词) |
+| M4 | v0.4.0 | ✅ | 搜索层 (嵌入、存储、语义搜索、混合搜索) |
+| M5 | v0.5.0 | ✅ | Web 界面 (Streamlit: 首页、列表、搜索、报告) |
+| M6 | v0.6.0 | 🔄 | 测试优化与部署 |
+| M7 | v0.7.0 | ⏳ | FastAPI 后端 (REST API) |
 
-当前版本: v0.2.0
+当前版本: v0.5.0
 
 ## 快速开始
 
@@ -99,13 +100,16 @@ evo-flywheel/
 │       ├── __init__.py
 │       ├── config.py         # 配置管理 (pydantic-settings)
 │       ├── logging.py        # 日志配置 (轮转 + JSON)
-│       ├── api/              # FastAPI endpoints (待开发)
 │       ├── db/               # SQLite models and operations ✅
 │       │   ├── models.py      # SQLAlchemy models
 │       │   ├── crud.py        # CRUD operations
 │       │   └── init.py        # 数据库初始化脚本
-│       ├── vector/           # Chroma integration ✅
-│       │   └── client.py      # Chroma PersistentClient
+│       ├── vector/           # Chroma + 嵌入 + 搜索 ✅
+│       │   ├── client.py      # Chroma PersistentClient
+│       │   ├── embeddings.py  # Embedding API 客户端
+│       │   ├── storage.py     # 向量存储服务
+│       │   ├── search.py      # 语义搜索服务
+│       │   └── hybrid.py      # 混合搜索服务
 │       ├── collectors/       # RSS/API data collection ✅
 │       │   ├── rss.py         # RSS feed parser
 │       │   ├── biorxiv.py     # bioRxiv API client
@@ -113,18 +117,27 @@ evo-flywheel/
 │       │   └── orchestrator.py # Multi-source coordinator
 │       ├── scheduler/        # APScheduler tasks ✅
 │       │   └── jobs.py        # Daily collection jobs
-│       ├── analyzers/        # LLM paper analysis 🔄
-│       ├── reporters/        # Daily report generation (待开发)
-│       └── web/              # Streamlit UI ✅
-│           ├── app.py         # Streamlit 应用入口
-│           └── pages/         # 页面模块
-│               ├── home.py
-│               ├── list.py
-│               ├── search.py
-│               └── report.py
+│       ├── analyzers/        # LLM paper analysis ✅
+│       │   ├── llm.py         # GLM-4.7 client
+│       │   ├── prompts.py     # Analysis prompts
+│       │   └── batch.py       # Batch analysis
+│       ├── web/              # Streamlit UI ✅
+│       │   ├── app.py         # Streamlit 应用入口
+│       │   └── pages/         # 页面模块
+│       │       ├── home.py    # 首页
+│       │       ├── list.py    # 文献列表
+│       │       ├── search.py  # 语义搜索
+│       │       └── report.py  # 报告生成
+│       ├── api/              # FastAPI endpoints (待开发)
+│       └── reporters/        # 报告生成模块 (待开发)
 ├── tests/
 │   ├── conftest.py           # pytest fixtures ✅
 │   ├── unit/                 # 单元测试 ✅
+│   │   ├── test_analyzers/   # 分析器测试
+│   │   ├── test_vector/      # 向量搜索测试
+│   │   ├── test_web/         # Web 组件测试
+│   │   └── ...
+│   ├── integration/          # 集成测试 ✅
 │   └── e2e/                  # E2E 测试 ✅
 ├── config/
 │   └── sources.yaml          # RSS source configurations ✅
