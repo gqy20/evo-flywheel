@@ -6,7 +6,7 @@
 from typing import Any
 
 import streamlit as st
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 
 from evo_flywheel.config import get_settings
 from evo_flywheel.logging import get_logger
@@ -152,18 +152,18 @@ def render_paper_list(filters: dict, page: int = 1, page_size: int = DEFAULT_PAG
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
 
         # 获取总数 (SQL injection prevented by parameterized queries)
-        count_query = f"SELECT COUNT(*) FROM papers WHERE {where_sql}"  # nosec B608
+        count_query = text(f"SELECT COUNT(*) FROM papers WHERE {where_sql}")  # nosec B608
         total_count = conn.execute(count_query, params).scalar() or 0
 
         # 分页查询 (SQL injection prevented by parameterized queries)
         offset = (page - 1) * page_size
-        data_query = f"""
+        data_query = text(f"""
             SELECT id, title, authors, abstract, journal, publication_date, importance_score, taxa
             FROM papers
             WHERE {where_sql}
             ORDER BY importance_score DESC, publication_date DESC
             LIMIT ? OFFSET ?
-        """  # nosec B608
+        """)  # nosec B608
         params.extend([page_size, offset])
 
         papers = conn.execute(data_query, params).fetchall()

@@ -6,7 +6,7 @@ Evo-Flywheel Web 界面入口
 import streamlit as st
 
 from evo_flywheel.logging import get_logger
-from evo_flywheel.web.pages import home, list, report, search
+from evo_flywheel.web.views import home, list, report, search
 
 logger = get_logger(__name__)
 
@@ -16,6 +16,7 @@ st.set_page_config(
     page_icon="🧬",
     layout="wide",
     initial_sidebar_state="expanded",
+    menu_items=None,  # 隐藏默认菜单
 )
 
 # 自定义 CSS

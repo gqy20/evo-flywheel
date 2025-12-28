@@ -203,8 +203,12 @@ def render() -> None:
     st.markdown("---")
 
     # 初始化 session state
-    if "search_results" not in st.session_state:
-        st.session_state.search_results = None
+    if "search_query" not in st.session_state:
+        st.session_state.search_query = ""
+    if "search_n_results" not in st.session_state:
+        st.session_state.search_n_results = DEFAULT_N_RESULTS
+    if "search_filters" not in st.session_state:
+        st.session_state.search_filters = {}
 
     # 搜索输入区域
     query, n_results, filters = render_search_input()
@@ -221,7 +225,7 @@ def render() -> None:
         st.rerun()
 
     # 显示搜索结果
-    if hasattr(st.session_state, "search_query"):
+    if st.session_state.search_query:
         st.markdown("---")
         render_search_results(
             query=st.session_state.search_query,

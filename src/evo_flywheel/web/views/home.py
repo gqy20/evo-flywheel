@@ -6,7 +6,7 @@
 from datetime import datetime
 
 import streamlit as st
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 
 from evo_flywheel.config import get_settings
 from evo_flywheel.logging import get_logger
@@ -35,19 +35,20 @@ def render_stats_section() -> None:
         conn = get_db_connection()
 
         # 获取论文总数
-        total_papers = conn.execute("SELECT COUNT(*) FROM papers").scalar() or 0
+        total_papers = conn.execute(text("SELECT COUNT(*) FROM papers")).scalar() or 0
 
         # 获取最近7天新增
         recent_papers = (
             conn.execute(
-                "SELECT COUNT(*) FROM papers WHERE created_at >= datetime('now', '-7 days')"
+                text("SELECT COUNT(*) FROM papers WHERE created_at >= datetime('now', '-7 days')")
             ).scalar()
             or 0
         )
 
         # 获取高分论文数量
         high_score_papers = (
-            conn.execute("SELECT COUNT(*) FROM papers WHERE importance_score >= 80").scalar() or 0
+            conn.execute(text("SELECT COUNT(*) FROM papers WHERE importance_score >= 80")).scalar()
+            or 0
         )
 
         # 显示统计卡片
@@ -77,13 +78,13 @@ def render_recommendations_section() -> None:
 
         # 获取高分论文
         papers = conn.execute(
-            """
+            text("""
             SELECT id, title, abstract, authors, journal, publication_date, importance_score
             FROM papers
             WHERE importance_score >= 80
             ORDER BY importance_score DESC, publication_date DESC
             LIMIT 5
-            """
+            """)
         ).fetchall()
 
         if not papers:

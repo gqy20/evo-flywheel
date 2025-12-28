@@ -6,7 +6,7 @@
 from datetime import date, timedelta
 
 import streamlit as st
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 
 from evo_flywheel.config import get_settings
 from evo_flywheel.logging import get_logger
@@ -113,27 +113,27 @@ def generate_report_data(
         conn = get_db_connection()
 
         # 获取日期范围内的论文统计
-        stats_query = """
+        stats_query = text("""
             SELECT
                 COUNT(*) as total_papers,
                 COUNT(CASE WHEN importance_score >= ? THEN 1 END) as high_value_papers,
                 AVG(importance_score) as avg_score
             FROM papers
             WHERE publication_date BETWEEN ? AND ?
-        """
+        """)
         stats = conn.execute(
             stats_query, (min_score, start_date.isoformat(), end_date.isoformat())
         ).fetchone()
 
         # 获取顶级论文
-        papers_query = """
+        papers_query = text("""
             SELECT id, title, authors, abstract, journal, publication_date, importance_score
             FROM papers
             WHERE publication_date BETWEEN ? AND ?
                 AND importance_score >= ?
             ORDER BY importance_score DESC, publication_date DESC
             LIMIT ?
-        """
+        """)
         top_papers = conn.execute(
             papers_query,
             (start_date.isoformat(), end_date.isoformat(), min_score, max_papers),
@@ -329,10 +329,10 @@ def render() -> None:
     try:
         conn = get_db_connection()
         reports = conn.execute(
-            """SELECT report_date, total_papers, high_value_papers, created_at
+            text("""SELECT report_date, total_papers, high_value_papers, created_at
                FROM daily_reports
                ORDER BY report_date DESC
-               LIMIT 10"""
+               LIMIT 10""")
         ).fetchall()
 
         if reports:
