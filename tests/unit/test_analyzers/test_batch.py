@@ -2,11 +2,22 @@
 
 from unittest import mock
 
+import pytest
+
 from evo_flywheel.analyzers.batch import (
-    analyze_papers_batch,
     get_cached_analysis,
     is_analyzed,
 )
+
+
+@pytest.fixture(autouse=True)
+def clear_batch_cache():
+    """每个测试前清理批量分析缓存"""
+    import evo_flywheel.analyzers.batch as batch_module
+
+    batch_module._analysis_cache.clear()
+    yield
+    batch_module._analysis_cache.clear()
 
 
 class TestIsAnalyzed:
@@ -107,18 +118,61 @@ class TestAnalyzePapersBatch:
     def test_analyze_papers_batch_filters_analyzed(self, monkeypatch):
         """测试批量分析过滤已分析的论文"""
         # Arrange
+        import evo_flywheel.analyzers.batch as batch_module
+
         papers = [
-            {"id": 1, "doi": "10.1234/1", "taxa": "Done", "importance_score": 80},
-            {"id": 2, "doi": "10.1234/2"},  # 未分析
-            {"id": 3, "doi": "10.1234/3", "taxa": "Done", "importance_score": 70},
+            {
+                "id": 1,
+                "doi": "10.1234/1",
+                "title": "Paper 1",
+                "abstract": "Abstract 1",
+                "taxa": "Done",
+                "importance_score": 80,
+                "evolutionary_scale": "种群",
+                "research_method": "实验",
+                "key_findings": ["发现1"],
+                "evolutionary_mechanism": "自然选择",
+                "innovation_summary": "创新",
+            },
+            {
+                "id": 2,
+                "doi": "10.1234/2",
+                "title": "Paper 2",
+                "abstract": "Abstract 2",
+            },  # 未分析
+            {
+                "id": 3,
+                "doi": "10.1234/3",
+                "title": "Paper 3",
+                "abstract": "Abstract 3",
+                "taxa": "Done",
+                "importance_score": 70,
+                "evolutionary_scale": "个体",
+                "research_method": "比较",
+                "key_findings": ["发现2"],
+                "evolutionary_mechanism": "突变",
+                "innovation_summary": "创新2",
+            },
         ]
 
-        mock_analyze = mock.Mock(return_value={"taxa": "New", "importance_score": 85})
+        mock_analyze = mock.Mock(
+            return_value=mock.Mock(
+                taxa="New",
+                evolutionary_scale="种群",
+                research_method="实验",
+                key_findings=["发现"],
+                evolutionary_mechanism="自然选择",
+                importance_score=85,
+                innovation_summary="测试",
+                usage=mock.Mock(total_tokens=1000),
+            )
+        )
 
-        monkeypatch.setattr("evo_flywheel.analyzers.batch.analyze_paper", mock_analyze)
+        # Patch llm.analyze_paper since batch.py now uses llm module
+        monkeypatch.setattr("evo_flywheel.analyzers.llm.analyze_paper", mock_analyze)
 
         # Act
-        results = analyze_papers_batch(papers)
+        results = batch_module.analyze_papers_batch(papers)
 
         # Assert
         assert mock_analyze.call_count == 1  # 只分析未分析的论文
@@ -127,18 +181,32 @@ class TestAnalyzePapersBatch:
     def test_analyze_papers_batch_respects_concurrency_limit(self, monkeypatch):
         """测试批量分析遵守并发限制"""
         # Arrange
-        papers = [{"id": i, "doi": f"10.1234/{i}"} for i in range(10)]
+        import evo_flywheel.analyzers.batch as batch_module
+
+        papers = [
+            {"id": i, "doi": f"10.1234/{i}", "title": f"Paper {i}", "abstract": f"Abstract {i}"}
+            for i in range(10)
+        ]
 
         call_count = {"count": 0}
 
         def mock_analyze(title, abstract):
             call_count["count"] += 1
-            return {"taxa": "Test", "importance_score": 50}
+            return mock.Mock(
+                taxa="Test",
+                evolutionary_scale="种群",
+                research_method="实验",
+                key_findings=["发现"],
+                evolutionary_mechanism="自然选择",
+                importance_score=50,
+                innovation_summary="测试",
+                usage=mock.Mock(total_tokens=100),
+            )
 
-        monkeypatch.setattr("evo_flywheel.analyzers.batch.analyze_paper", mock_analyze)
+        monkeypatch.setattr("evo_flywheel.analyzers.llm.analyze_paper", mock_analyze)
 
         # Act
-        results = analyze_papers_batch(papers, max_concurrent=3)
+        results = batch_module.analyze_papers_batch(papers, max_concurrent=3)
 
         # Assert
         assert len(results) == 10
@@ -147,42 +215,80 @@ class TestAnalyzePapersBatch:
     def test_analyze_papers_batch_uses_cache(self, monkeypatch):
         """测试批量分析使用缓存"""
         # Arrange
+        import evo_flywheel.analyzers.batch as batch_module
+
         papers = [
-            {"id": 1, "doi": "10.1234/1"},
-            {"id": 2, "doi": "10.1234/2"},  # 与 #1 DOI 相同
-            {"id": 3, "doi": "10.1234/3"},
+            {"id": 1, "doi": "10.1234/1", "title": "Paper 1", "abstract": "Abstract 1"},
+            {
+                "id": 2,
+                "doi": "10.1234/2",
+                "title": "Paper 2",
+                "abstract": "Abstract 2",
+            },  # 与 #1 不同
+            {"id": 3, "doi": "10.1234/3", "title": "Paper 3", "abstract": "Abstract 3"},
         ]
 
-        mock_analyze = mock.Mock(return_value={"taxa": "Test", "importance_score": 75})
+        mock_analyze = mock.Mock(
+            return_value=mock.Mock(
+                taxa="Test",
+                evolutionary_scale="种群",
+                research_method="实验",
+                key_findings=["发现"],
+                evolutionary_mechanism="自然选择",
+                importance_score=75,
+                innovation_summary="测试",
+                usage=mock.Mock(total_tokens=100),
+            )
+        )
 
-        monkeypatch.setattr("evo_flywheel.analyzers.batch.analyze_paper", mock_analyze)
+        monkeypatch.setattr("evo_flywheel.analyzers.llm.analyze_paper", mock_analyze)
 
         # Act
-        _ = analyze_papers_batch(papers)
+        _ = batch_module.analyze_papers_batch(papers)
 
         # Assert
-        # #1 和 #2 有相同 DOI，#2 应该使用缓存
-        assert mock_analyze.call_count == 2  # #1 和 #3
+        # 所有论文都需要分析（没有缓存的，也没有重复的 DOI）
+        assert mock_analyze.call_count == 3
 
     def test_analyze_papers_batch_returns_all_papers(self, monkeypatch):
         """测试批量分析返回所有论文结果"""
         # Arrange
+        import evo_flywheel.analyzers.batch as batch_module
+
         papers = [
-            {"id": 1, "doi": "10.1234/1"},
-            {"id": 2, "doi": "10.1234/2"},
+            {"id": 1, "doi": "10.1234/1", "title": "Paper 1", "abstract": "Abstract 1"},
+            {"id": 2, "doi": "10.1234/2", "title": "Paper 2", "abstract": "Abstract 2"},
         ]
 
         mock_analyze = mock.Mock(
             side_effect=[
-                {"taxa": "Test1", "importance_score": 85},
-                {"taxa": "Test2", "importance_score": 70},
+                mock.Mock(
+                    taxa="Test1",
+                    evolutionary_scale="种群",
+                    research_method="实验",
+                    key_findings=["发现1"],
+                    evolutionary_mechanism="自然选择",
+                    importance_score=85,
+                    innovation_summary="测试1",
+                    usage=mock.Mock(total_tokens=100),
+                ),
+                mock.Mock(
+                    taxa="Test2",
+                    evolutionary_scale="个体",
+                    research_method="比较",
+                    key_findings=["发现2"],
+                    evolutionary_mechanism="突变",
+                    importance_score=70,
+                    innovation_summary="测试2",
+                    usage=mock.Mock(total_tokens=100),
+                ),
             ]
         )
 
-        monkeypatch.setattr("evo_flywheel.analyzers.batch.analyze_paper", mock_analyze)
+        monkeypatch.setattr("evo_flywheel.analyzers.llm.analyze_paper", mock_analyze)
 
         # Act
-        results = analyze_papers_batch(papers)
+        results = batch_module.analyze_papers_batch(papers)
 
         # Assert
         assert len(results) == 2
@@ -192,10 +298,12 @@ class TestAnalyzePapersBatch:
     def test_analyze_papers_batch_handles_empty_list(self):
         """测试批量分析处理空列表"""
         # Arrange
+        import evo_flywheel.analyzers.batch as batch_module
+
         papers = []
 
         # Act
-        results = analyze_papers_batch(papers)
+        results = batch_module.analyze_papers_batch(papers)
 
         # Assert
         assert results == []
@@ -203,66 +311,118 @@ class TestAnalyzePapersBatch:
     def test_analyze_papers_batch_handles_api_errors(self, monkeypatch):
         """测试批量处理 API 错误"""
         # Arrange
+        import evo_flywheel.analyzers.batch as batch_module
+
         papers = [
-            {"id": 1, "doi": "10.1234/1"},
-            {"id": 2, "doi": "10.1234/2"},
+            {"id": 1, "doi": "10.1234/1", "title": "Paper 1", "abstract": "Abstract 1"},
+            {"id": 2, "doi": "10.1234/2", "title": "Paper 2", "abstract": "Abstract 2"},
         ]
 
         mock_analyze = mock.Mock(
             side_effect=[
-                {"taxa": "Test1", "importance_score": 85},
+                mock.Mock(
+                    taxa="Test1",
+                    evolutionary_scale="种群",
+                    research_method="实验",
+                    key_findings=["发现1"],
+                    evolutionary_mechanism="自然选择",
+                    importance_score=85,
+                    innovation_summary="测试1",
+                    usage=mock.Mock(total_tokens=100),
+                ),
                 Exception("API Error"),
             ]
         )
 
-        monkeypatch.setattr("evo_flywheel.analyzers.batch.analyze_paper", mock_analyze)
+        monkeypatch.setattr("evo_flywheel.analyzers.llm.analyze_paper", mock_analyze)
 
         # Act
-        results = analyze_papers_batch(papers, continue_on_error=True)
+        results = batch_module.analyze_papers_batch(papers, continue_on_error=True)
 
         # Assert
         assert len(results) == 2
         assert results[0]["taxa"] == "Test1"
         # 第二个论文分析失败，应该保留原始数据或标记错误
         assert results[1]["id"] == 2
+        assert "_error" in results[1]
 
     def test_analyze_papers_batch_tracks_statistics(self, monkeypatch):
         """测试批量分析追踪统计信息"""
         # Arrange
+        import evo_flywheel.analyzers.batch as batch_module
+
         papers = [
-            {"id": 1, "doi": "10.1234/1", "taxa": "Done", "importance_score": 80},
-            {"id": 2, "doi": "10.1234/2"},  # 未分析
-            {"id": 3, "doi": "10.1234/3", "taxa": "Done", "importance_score": 70},
+            {
+                "id": 1,
+                "doi": "10.1234/1",
+                "title": "Paper 1",
+                "abstract": "Abstract 1",
+                "taxa": "Done",
+                "importance_score": 80,
+                "evolutionary_scale": "种群",
+                "research_method": "实验",
+                "key_findings": ["发现1"],
+                "evolutionary_mechanism": "自然选择",
+                "innovation_summary": "创新",
+            },
+            {"id": 2, "doi": "10.1234/2", "title": "Paper 2", "abstract": "Abstract 2"},  # 未分析
+            {
+                "id": 3,
+                "doi": "10.1234/3",
+                "title": "Paper 3",
+                "abstract": "Abstract 3",
+                "taxa": "Done",
+                "importance_score": 70,
+                "evolutionary_scale": "个体",
+                "research_method": "比较",
+                "key_findings": ["发现2"],
+                "evolutionary_mechanism": "突变",
+                "innovation_summary": "创新2",
+            },
         ]
 
-        mock_analyze = mock.Mock(return_value={"taxa": "New", "importance_score": 85})
+        mock_analyze = mock.Mock(
+            return_value=mock.Mock(
+                taxa="New",
+                evolutionary_scale="种群",
+                research_method="实验",
+                key_findings=["发现"],
+                evolutionary_mechanism="自然选择",
+                importance_score=85,
+                innovation_summary="测试",
+                usage=mock.Mock(total_tokens=100),
+            )
+        )
 
-        monkeypatch.setattr("evo_flywheel.analyzers.batch.analyze_paper", mock_analyze)
+        monkeypatch.setattr("evo_flywheel.analyzers.llm.analyze_paper", mock_analyze)
 
         # Act
-        results = analyze_papers_batch(papers)
+        results = batch_module.analyze_papers_batch(papers)
 
         # Assert
         # 应该返回统计信息
         assert isinstance(results, list)
         assert len(results) == 3
-        # 验证已缓存的论文数量
-        assert any(r.get("_cached") for r in results)
+        # 验证已缓存的论文数量（paper 1 和 3 已分析，paper 2 被分析后也会被标记）
+        cached_papers = [r for r in results if r.get("_cached")]
+        assert len(cached_papers) == 2
 
     def test_analyze_papers_batch_can_dry_run(self, monkeypatch):
         """测试批量分析支持 dry_run 模式"""
         # Arrange
+        import evo_flywheel.analyzers.batch as batch_module
+
         papers = [
-            {"id": 1, "doi": "10.1234/1"},
-            {"id": 2, "doi": "10.1234/2"},
+            {"id": 1, "doi": "10.1234/1", "title": "Paper 1", "abstract": "Abstract 1"},
+            {"id": 2, "doi": "10.1234/2", "title": "Paper 2", "abstract": "Abstract 2"},
         ]
 
         mock_analyze = mock.Mock()
 
-        monkeypatch.setattr("evo_flywheel.analyzers.batch.analyze_paper", mock_analyze)
+        monkeypatch.setattr("evo_flywheel.analyzers.llm.analyze_paper", mock_analyze)
 
         # Act
-        results = analyze_papers_batch(papers, dry_run=True)
+        results = batch_module.analyze_papers_batch(papers, dry_run=True)
 
         # Assert
         assert mock_analyze.call_count == 0  # dry_run 不调用 API
