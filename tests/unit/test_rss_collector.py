@@ -4,6 +4,7 @@ from unittest import mock
 
 import feedparser
 import pytest
+import requests
 
 from evo_flywheel.collectors.rss import (
     fetch_rss_feed,
@@ -259,3 +260,88 @@ class TestParseRSSEntries:
         # Assert
         assert len(results) == 2
         assert all("title" in r for r in results)
+
+
+class TestFetchRSSFeedWithHeaders:
+    """RSS feed 获取测试 - 带请求头和超时"""
+
+    def test_fetch_rss_feed_sends_user_agent_header(self, monkeypatch):
+        """测试发送 User-Agent 请求头"""
+        # Arrange
+        mock_response = mock.Mock()
+        mock_response.status_code = 200
+        mock_response.content = b"<rss><channel><item><title>Test</title></item></channel></rss>"
+
+        captured_request = {"headers": None}
+
+        def mock_get(url, timeout, headers=None):
+            captured_request["headers"] = headers
+            return mock_response
+
+        monkeypatch.setattr("requests.get", mock_get)
+
+        # Act
+        fetch_rss_feed("https://example.com/feed")
+
+        # Assert
+        assert captured_request["headers"] is not None
+        assert "User-Agent" in captured_request["headers"]
+        assert "Mozilla" in captured_request["headers"]["User-Agent"]
+
+    def test_fetch_rss_feed_with_custom_timeout(self, monkeypatch):
+        """测试使用自定义超时时间"""
+        # Arrange
+        mock_response = mock.Mock()
+        mock_response.status_code = 200
+        mock_response.content = b"<rss><channel><item><title>Test</title></item></channel></rss>"
+
+        captured_timeout = {"value": None}
+
+        def mock_get(url, timeout, headers=None):
+            captured_timeout["value"] = timeout
+            return mock_response
+
+        monkeypatch.setattr("requests.get", mock_get)
+
+        # Act
+        fetch_rss_feed("https://example.com/feed", timeout=60)
+
+        # Assert
+        assert captured_timeout["value"] == 60
+
+    def test_fetch_rss_feed_handles_403_forbidden(self, monkeypatch):
+        """测试处理 403 Forbidden 错误"""
+        # Arrange
+        mock_response = mock.Mock()
+        mock_response.status_code = 403
+        mock_response.raise_for_status.side_effect = requests.HTTPError("403 Forbidden")
+
+        def mock_get(url, timeout, headers=None):
+            return mock_response
+
+        monkeypatch.setattr("requests.get", mock_get)
+
+        # Act & Assert
+        with pytest.raises(requests.HTTPError, match="403"):
+            fetch_rss_feed("https://example.com/feed")
+
+    def test_fetch_rss_feed_default_timeout_is_60_seconds(self, monkeypatch):
+        """测试默认超时时间为 60 秒"""
+        # Arrange
+        mock_response = mock.Mock()
+        mock_response.status_code = 200
+        mock_response.content = b"<rss></rss>"
+
+        captured_timeout = {"value": None}
+
+        def mock_get(url, timeout, headers=None):
+            captured_timeout["value"] = timeout
+            return mock_response
+
+        monkeypatch.setattr("requests.get", mock_get)
+
+        # Act
+        fetch_rss_feed("https://example.com/feed")
+
+        # Assert
+        assert captured_timeout["value"] == 60
