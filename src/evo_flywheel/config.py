@@ -73,12 +73,16 @@ class Settings(BaseSettings):
 
     # Embedding API 配置
     embedding_api_url: str = Field(
-        default="",
-        description="Embedding API URL",
+        default="https://api.openai.com/v1",
+        description="Embedding API Base URL（不含 /embeddings 路径）",
     )
     embedding_api_key: str = Field(
         default="",
         description="Embedding API 密钥",
+    )
+    embedding_model: str = Field(
+        default="text-embedding-3-small",
+        description="Embedding 模型名称",
     )
 
     model_config = SettingsConfigDict(

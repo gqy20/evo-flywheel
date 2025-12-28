@@ -32,17 +32,16 @@ def get_embedding_client() -> httpx.Client:
 
     settings = get_settings()
 
-    # 从环境变量获取配置
-    api_url = getattr(settings, "embedding_api_url", None)
-    api_key = getattr(settings, "embedding_api_key", None)
+    # 从配置获取
+    api_url = settings.embedding_api_url
+    api_key = settings.embedding_api_key
 
     if not api_key:
         raise ValueError("未配置 EMBEDDING_API_KEY 环境变量")
 
-    # 使用默认的 Embedding API URL
-    if not api_url:
-        api_url = "https://api.openai.com/v1/embeddings"
-
+    # 构造完整的 base URL（如果需要）
+    # 用户配置的 base_url 应该是 https://api.xxx.com/v1 形式
+    # httpx 会自动将其与 "/embeddings" 拼接
     _client = httpx.Client(
         base_url=api_url,
         headers={"Authorization": f"Bearer {api_key}"},
@@ -52,12 +51,22 @@ def get_embedding_client() -> httpx.Client:
     return _client
 
 
-def generate_embedding(text: str, model: str = "text-embedding-3-small") -> list[float]:
+def get_embedding_model() -> str:
+    """获取配置的 Embedding 模型名称
+
+    Returns:
+        str: 模型名称
+    """
+    settings = get_settings()
+    return settings.embedding_model
+
+
+def generate_embedding(text: str, model: str | None = None) -> list[float]:
     """生成单个文本的向量表示
 
     Args:
         text: 输入文本
-        model: Embedding 模型名称
+        model: Embedding 模型名称（默认使用配置中的模型）
 
     Returns:
         list[float]: 向量表示（384维或1536维）
@@ -68,6 +77,10 @@ def generate_embedding(text: str, model: str = "text-embedding-3-small") -> list
     """
     if not text or not text.strip():
         raise ValueError("文本不能为空")
+
+    # 使用传入的模型，或使用配置中的默认模型
+    if model is None:
+        model = get_embedding_model()
 
     client = get_embedding_client()
 
@@ -108,7 +121,7 @@ def generate_embedding(text: str, model: str = "text-embedding-3-small") -> list
 
 def generate_embeddings_batch(
     texts: list[str],
-    model: str = "text-embedding-3-small",
+    model: str | None = None,
     max_concurrent: int = 5,
     continue_on_error: bool = False,
 ) -> list[list[float] | None]:
@@ -116,7 +129,7 @@ def generate_embeddings_batch(
 
     Args:
         texts: 文本列表
-        model: Embedding 模型名称
+        model: Embedding 模型名称（默认使用配置中的模型）
         max_concurrent: 最大并发数
         continue_on_error: 遇到错误是否继续
 
@@ -125,6 +138,10 @@ def generate_embeddings_batch(
     """
     if not texts:
         return []
+
+    # 使用传入的模型，或使用配置中的默认模型
+    if model is None:
+        model = get_embedding_model()
 
     results: list[list[float] | None] = [None] * len(texts)
 
