@@ -15,12 +15,12 @@ from evo_flywheel.logging import get_logger
 logger = get_logger(__name__)
 
 
-def fetch_rss_feed(url: str, timeout: int = 30) -> feedparser.FeedParserDict:
+def fetch_rss_feed(url: str, timeout: int = 60) -> feedparser.FeedParserDict:
     """获取 RSS feed
 
     Args:
         url: RSS feed URL
-        timeout: 请求超时时间（秒）
+        timeout: 请求超时时间（秒），默认 60 秒
 
     Returns:
         FeedParserDict: 解析后的 feed 对象
@@ -31,8 +31,16 @@ def fetch_rss_feed(url: str, timeout: int = 30) -> feedparser.FeedParserDict:
     """
     logger.debug(f"Fetching RSS feed: {url}")
 
+    # 使用浏览器 User-Agent 避免被 403 拒绝
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        )
+    }
+
     try:
-        response = requests.get(url, timeout=timeout)
+        response = requests.get(url, timeout=timeout, headers=headers)
         response.raise_for_status()
     except TimeoutError:
         logger.error(f"Timeout fetching RSS feed: {url}")
