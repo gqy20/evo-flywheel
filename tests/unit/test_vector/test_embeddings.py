@@ -17,9 +17,11 @@ class TestGetEmbeddingClient:
     def test_get_client_returns_singleton(self, monkeypatch):
         """测试获取客户端返回单例"""
         # Arrange
+        import evo_flywheel.config as config_module
         import evo_flywheel.vector.embeddings as embeddings_module
 
         embeddings_module._client = None
+        config_module._settings = None  # 清除 Settings 缓存
 
         monkeypatch.setenv("EMBEDDING_API_URL", "http://test.api")
         monkeypatch.setenv("EMBEDDING_API_KEY", "test-key")
