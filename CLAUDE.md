@@ -8,7 +8,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Current Status
 
-This project is in the **planning/documentation phase**. No code has been written yet. Refer to `docs/` for comprehensive design documentation.
+**里程碑 1 (v0.1.0 - 基础设施) 已完成** ✅
+- ✅ 项目初始化 (uv + ruff + pre-commit)
+- ✅ 数据库模型 (SQLite + Chroma)
+- ✅ CRUD 操作模块
+- ✅ 单元测试框架
+- 🔄 进入里程碑 2 (数据采集层)
 
 ---
 
@@ -38,65 +43,54 @@ Both databases are linked via `paper_id`. Chroma uses the same ID as SQLite for 
 | Backend | FastAPI | REST API with auto-documentation |
 | Frontend | Streamlit | Quick web interface without frontend expertise |
 | Structured Data | SQLite | Zero-config single-file database |
-| Vector Data | Chroma | Embedded vector database (duckdb+parquet) |
-| Embeddings | sentence-transformers | Free local model (all-MiniLM-L6-v2) |
+| Vector Data | Chroma | Embedded vector database (PersistentClient) |
+| Embeddings | 远程 API | 使用远程 embedding 服务 (非本地模型) |
 | LLM | 智谱 GLM-4.7 | Paper analysis (¥0.5/1M input, ¥2/1M output) |
 | Scheduler | APScheduler | Daily automated tasks |
 | RSS Parsing | feedparser | RSS feed parsing |
 | Linting | ruff | Fast Python linter & formatter |
 | Package Manager | uv | Fast Python package installer |
+| Testing | pytest | Unit testing framework |
 
-### Planned Directory Structure (src layout)
+### Project Structure (src layout)
 
 ```
 evo-flywheel/
 ├── src/
 │   └── evo_flywheel/         # 主包目录
 │       ├── __init__.py
-│       ├── api/              # FastAPI endpoints
-│       │   ├── __init__.py
-│       │   └── main.py       # FastAPI app
-│       ├── db/               # SQLite models and operations
-│       │   ├── __init__.py
+│       ├── config.py         # 配置管理 (pydantic-settings)
+│       ├── logging.py        # 日志配置
+│       ├── api/              # FastAPI endpoints (待开发)
+│       ├── db/               # SQLite models and operations ✅
 │       │   ├── models.py      # SQLAlchemy models
-│       │   └── crud.py        # CRUD operations
-│       ├── vector/           # Chroma integration
-│       │   ├── __init__.py
-│       │   └── client.py      # Chroma client
-│       ├── collectors/       # RSS/API data collection
-│       │   ├── __init__.py
-│       │   ├── rss.py
-│       │   └── biorxiv.py
-│       ├── analyzers/        # LLM paper analysis
-│       │   ├── __init__.py
-│       │   ├── prompts.py
-│       │   └── llm.py
-│       ├── reporters/        # Daily report generation
-│       │   ├── __init__.py
-│       │   └── generator.py
-│       ├── scheduler/        # APScheduler tasks
-│       │   ├── __init__.py
-│       │   └── jobs.py
-│       └── web/              # Streamlit UI
-│           ├── __init__.py
-│           └── app.py
+│       │   ├── crud.py        # CRUD operations
+│       │   └── init.py        # 数据库初始化脚本
+│       ├── vector/           # Chroma integration ✅
+│       │   └── client.py      # Chroma PersistentClient
+│       ├── collectors/       # RSS/API data collection (待开发)
+│       ├── analyzers/        # LLM paper analysis (待开发)
+│       ├── reporters/        # Daily report generation (待开发)
+│       ├── scheduler/        # APScheduler tasks (待开发)
+│       └── web/              # Streamlit UI (待开发)
 ├── tests/
 │   ├── __init__.py
-│   ├── unit/                 # 单元测试
-│   │   ├── test_db.py
-│   │   ├── test_collectors.py
-│   │   └── ...
-│   ├── integration/          # 集成测试
-│   │   └── test_pipeline.py
-│   └── conftest.py           # pytest fixtures
+│   ├── conftest.py           # pytest fixtures ✅
+│   ├── unit/                 # 单元测试 ✅
+│   │   ├── test_config.py
+│   │   ├── test_db_models.py
+│   │   ├── test_db_crud.py
+│   │   └── test_vector_client.py
+│   └── integration/          # 集成测试 (待开发)
 ├── config/
-│   └── sources.yaml          # RSS source configurations
+│   └── sources.yaml          # RSS source configurations ✅
 ├── data/                     # Generated data files
 ├── reports/                  # Daily markdown reports
 ├── chroma_db/                # Vector database storage
-├── pyproject.toml            # 项目配置 (替代 setup.py)
-├── .env.example              # 环境变量模板
+├── pyproject.toml            # 项目配置 (uv) ✅
+├── .env.example              # 环境变量模板 ✅
 ├── .gitignore
+├── .pre-commit-config.yaml    # Pre-commit hooks ✅
 ├── README.md
 └── CLAUDE.md
 ```
@@ -111,24 +105,20 @@ evo-flywheel/
 
 ```bash
 # 使用 uv 管理环境
-uv venv                          # 创建虚拟环境
+uv venv                          # 创建虚拟环境 (Python 3.13)
 source .venv/bin/activate         # 激活环境 (Windows: .venv\Scripts\activate)
 uv pip install -e ".[dev]"       # 安装项目（开发模式，含所有依赖）
 
-# 安装 pre-commit hooks
+# 安装 pre-commit hooks (首次运行)
 pre-commit install                # 安装 Git hooks
 
-# 运行 Streamlit Web 界面
-streamlit run src/evo_flywheel/web/app.py
-
-# 运行 FastAPI 后端
-uvicorn src.evo_flywheel.api.main:app --reload
+# 初始化数据库
+uv run python -m src.evo_flywheel.db.init
 
 # 代码检查和格式化 (ruff)
 ruff check .                    # 检查代码
 ruff check . --fix              # 检查并自动修复
 ruff format .                   # 格式化代码
-ruff format --check .           # 检查格式（CI用）
 
 # 手动运行 pre-commit
 pre-commit run --all-files      # 检查所有文件
@@ -138,9 +128,6 @@ pytest                          # 运行所有测试
 pytest tests/unit/              # 只运行单元测试
 pytest -v                       # 详细输出
 pytest --cov=src/evo_flywheel   # 测试覆盖率
-
-# 手动触发采集
-python -m src.evo_flywheel.scheduler.jobs
 ```
 
 **为什么使用 uv:**
@@ -174,12 +161,12 @@ python -m src.evo_flywheel.scheduler.jobs
 
 3. Vectorization
    New papers
-   → Generate embeddings (sentence-transformers)
+   → Generate embeddings (远程 API)
    → Store in Chroma with metadata
 
 4. Search (On-demand)
    User query
-   → Query embedding
+   → Query embedding (远程 API)
    → Chroma similarity search
    → Hybrid: SQLite filters + Chroma ranking
 
@@ -275,13 +262,22 @@ POST   /api/embeddings/rebuild        # Rebuild vector index
 
 See `docs/ROADMAP.md` for detailed 6-phase development plan (2-3 weeks MVP):
 
-1. **Phase 0**: Project initialization (0.5d)
-2. **Phase 1**: Data layer - SQLite + Chroma setup (2d)
-3. **Phase 2**: Collection layer - RSS + bioRxiv API (2d)
+1. **Phase 0**: Project initialization (0.5d) ✅ 完成
+2. **Phase 1**: Data layer - SQLite + Chroma setup (2d) ✅ 完成
+3. **Phase 2**: Collection layer - RSS + bioRxiv API (2d) 🔄 进行中
 4. **Phase 3**: Analysis layer - LLM integration (2d)
 5. **Phase 4**: Search layer - Embeddings + semantic search (1.5d)
 6. **Phase 5**: Presentation layer - Streamlit UI (3d)
 7. **Phase 6**: Testing & optimization (2d)
+
+### Completed Milestones
+
+**v0.1.0 - 基础设施** (已完成)
+- Issue #1: 项目初始化 ✅
+- Issue #2: 数据库Schema设计 ✅
+- Issue #3: Chroma集成 ✅
+- Issue #4: 单元测试框架 ✅
+- Issue #5: 数据库CRUD测试 ✅
 
 ---
 
@@ -300,24 +296,30 @@ See `docs/ROADMAP.md` for detailed 6-phase development plan (2-3 weeks MVP):
 
 ## Key Integration Notes
 
+### Chroma PersistentClient (新版 API)
+
+```python
+import chromadb
+
+client = chromadb.PersistentClient(path="./chroma_db")
+collection = client.get_or_create_collection("evolutionary_papers")
+```
+
+**注意**: 不再使用旧的 `Settings(chroma_db_impl="duckdb+parquet")` API。
+
+### Remote Embedding API
+
+使用远程 embedding 服务（非本地模型），需在环境变量中配置：
+- `EMBEDDING_API_URL`: Embedding API 端点
+- `EMBEDDING_API_KEY`: API 密钥
+- `EMBEDDING_MODEL`: 模型名称
+
 ### bioRxiv API vs RSS
 
 Use the **bioRxiv API** instead of RSS:
 - RSS is protected by Cloudflare (requires JavaScript rendering)
 - API returns structured JSON, supports date range and category filtering
 - Endpoint: `https://api.biorxiv.org/details/biorxiv/{start}/{end}?category=evolutionary_biology`
-
-### Chroma Embedded Mode
-
-```python
-import chromadb
-from chromadb.config import Settings
-
-client = chromadb.Client(Settings(
-    chroma_db_impl="duckdb+parquet",
-    persist_directory="./chroma_db"
-))
-```
 
 ### Hybrid Search Pattern
 
