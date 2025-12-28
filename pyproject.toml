@@ -3,7 +3,7 @@ name = "evo-flywheel"
 version = "0.1.0"
 description = "进化生物学学术飞轮 - AI 驱动的文献分析与报告系统"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.13"
 license = {text = "MIT"}
 authors = [
     {name = "gqy20", email = "gqy20@example.com"}
@@ -14,55 +14,53 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 
 dependencies = [
     # Web 框架
-    "fastapi>=0.104.0",
-    "streamlit>=1.28.0",
-    "uvicorn[standard]>=0.24.0",
+    "fastapi>=0.115.0",
+    "streamlit>=1.40.0",
+    "uvicorn[standard]>=0.32.0",
 
     # 数据库
-    "sqlalchemy>=2.0.0",
-    "chromadb>=0.4.0",
+    "sqlalchemy>=2.0.36",
+    "chromadb>=0.6.0",
 
     # 数据采集
-    "feedparser>=6.0.10",
-    "requests>=2.31.0",
+    "feedparser>=6.0.11",
+    "requests>=2.32.0",
     "beautifulsoup4>=4.12.0",
 
     # LLM
-    "zhipuai>=2.0.0",
+    "zhipuai>=2.1.0",
 
     # Embedding API (远程服务，无需本地模型)
     # 使用 OpenAI embeddings 或其他远程 API
 
     # 调度
-    "apscheduler>=3.10.0",
+    "apscheduler>=3.11.0",
 
     # 工具库
     "python-dotenv>=1.0.0",
-    "pydantic>=2.5.0",
-    "pydantic-settings>=2.1.0",
-    "httpx>=0.25.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+    "httpx>=0.28.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     # 测试
-    "pytest>=7.4.0",
-    "pytest-cov>=4.1.0",
-    "pytest-mock>=3.12.0",
-    "pytest-asyncio>=0.21.0",
+    "pytest>=8.0.0",
+    "pytest-cov>=6.0.0",
+    "pytest-mock>=3.14.0",
+    "pytest-asyncio>=0.24.0",
 
     # 代码质量
-    "ruff>=0.1.0",
-    "mypy>=1.7.0",
-    "pre-commit>=3.5.0",
+    "ruff>=0.9.0",
+    "mypy>=1.14.0",
+    "pre-commit>=4.0.0",
 
     # 类型检查
     "types-requests",
@@ -87,7 +85,7 @@ packages = ["src/evo_flywheel"]
 
 # Ruff 配置
 [tool.ruff]
-target-version = "py310"
+target-version = "py313"
 line-length = 100
 indent-width = 4
 
@@ -171,7 +169,7 @@ exclude_lines = [
 
 # MyPy 配置
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.13"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
