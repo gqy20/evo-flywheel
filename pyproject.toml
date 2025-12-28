@@ -146,6 +146,11 @@ markers = [
     "slow: 慢速测试",
 ]
 
+# Playwright 配置
+[tool.pytest_playwright]
+# 在无头模式下运行浏览器（无 X 环境时必需）
+headless = true
+
 # Coverage 配置
 [tool.coverage.run]
 source = ["src"]
@@ -211,3 +216,9 @@ ignore_errors = true
 [tool.bandit]
 exclude_dirs = ["tests"]
 skips = ["B101"]  # 允许 assert 用于测试
+
+[dependency-groups]
+dev = [
+    "playwright>=1.57.0",
+    "pytest-playwright>=0.7.2",
+]
