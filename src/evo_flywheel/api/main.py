@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from evo_flywheel.api.v1 import papers, search
+from evo_flywheel.api.v1 import collection, papers, reports, search, stats
 from evo_flywheel.logging import get_logger
 
 logger = get_logger(__name__)
@@ -42,6 +42,9 @@ app.add_middleware(
 # 注册 v1 路由
 app.include_router(papers.router, prefix="/api/v1/papers", tags=["papers"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
+app.include_router(reports.router, prefix="/api/v1/reports", tags=["reports"])
+app.include_router(collection.router, prefix="/api/v1/collection", tags=["collection"])
+app.include_router(stats.router, prefix="/api/v1/stats", tags=["stats"])
 
 
 @app.get("/")
