@@ -72,7 +72,10 @@ def trigger_analysis(
             paper_obj.taxa = paper_dict.get("taxa")  # type: ignore
             paper_obj.evolutionary_scale = paper_dict.get("evolutionary_scale")  # type: ignore
             paper_obj.research_method = paper_dict.get("research_method")  # type: ignore
-            paper_obj.key_findings = paper_dict.get("key_findings")  # type: ignore
+            # key_findings 是列表，需要使用 key_findings_list 属性存储为 JSON
+            key_findings = paper_dict.get("key_findings")
+            if key_findings:
+                paper_obj.key_findings_list = key_findings  # type: ignore
             paper_obj.evolutionary_mechanism = paper_dict.get("evolutionary_mechanism")  # type: ignore
             paper_obj.importance_score = paper_dict.get("importance_score")  # type: ignore
             paper_obj.innovation_summary = paper_dict.get("innovation_summary")  # type: ignore
