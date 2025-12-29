@@ -427,17 +427,11 @@ def render_admin_panel() -> None:
                             st.error("❌ 索引发起失败，请稍后重试")
 
             with col_btn4:
-                force_confirmed = st.checkbox(
-                    "确认强制重建", value=False, key="confirm_force_rebuild"
-                )
-                if (
-                    st.button(
-                        "🔄 强制重建",
-                        key="admin_force_rebuild",
-                        type="secondary",
-                        use_container_width=True,
-                    )
-                    and force_confirmed
+                if st.button(
+                    "🔄 强制重建",
+                    key="admin_force_rebuild",
+                    type="secondary",
+                    use_container_width=True,
                 ):
                     with st.status("正在重建索引...", expanded=True) as status:
                         result = rebuild_embeddings(force=True)
