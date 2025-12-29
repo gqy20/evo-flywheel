@@ -402,16 +402,27 @@ class APIClient:
         # 使用 params 传递查询参数（后端使用 Query 接收）
         return self._request("POST", "/api/v1/reports/generate-deep", params=params)
 
-    def get_deep_report(self, report_date: str) -> dict[str, Any] | None:
-        """获取指定日期的深度报告详情
+    def get_deep_report(self, report_id: int) -> dict[str, Any] | None:
+        """获取指定 ID 的深度报告详情
+
+        Args:
+            report_id: 报告 ID
+
+        Returns:
+            报告详情数据，失败返回 None
+        """
+        return self._request("GET", f"/api/v1/reports/deep/{report_id}")
+
+    def get_deep_reports_by_date(self, report_date: str) -> dict[str, Any] | None:
+        """获取指定日期的所有深度报告
 
         Args:
             report_date: 日期字符串 (YYYY-MM-DD)
 
         Returns:
-            报告详情数据，失败返回 None
+            报告列表数据，失败返回 None
         """
-        return self._request("GET", f"/api/v1/reports/date/{report_date}")
+        return self._request("GET", f"/api/v1/reports/deep/date/{report_date}")
 
     def list_deep_reports(self, limit: int = 10) -> dict[str, Any] | None:
         """获取深度报告列表

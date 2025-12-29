@@ -34,6 +34,11 @@ class DeepReportDetailResponse(BaseModel):
     created_at: str = Field(description="创建时间")
 
 
+# ============================================================================
+# 简单报告（论文列表）
+# ============================================================================
+
+
 @router.get("/today")
 def get_today_report(db: Session = Depends(get_db)) -> dict:
     """获取今日报告
@@ -73,7 +78,7 @@ def get_report_by_date(
     report_date: date,
     db: Session = Depends(get_db),
 ) -> dict:
-    """获取指定日期的报告"""
+    """获取指定日期的报告（简单版：论文列表）"""
     next_day = report_date + timedelta(days=1)
     papers = (
         db.query(Paper)
@@ -97,6 +102,11 @@ def get_report_by_date(
             for p in papers
         ],
     }
+
+
+# ============================================================================
+# 深度报告（LLM 生成的研究分析）
+# ============================================================================
 
 
 @router.post("/generate")
@@ -175,12 +185,15 @@ def generate_deep_report_endpoint(
         raise HTTPException(status_code=500, detail=f"生成深度报告失败: {e!s}")
 
 
+# 深度报告路由 - 必须放在 /{report_id} 之前避免冲突
 @router.get("/deep", response_model=list[DeepReportDetailResponse])
 def list_deep_reports(
     limit: int = Query(10, description="返回数量限制", ge=1, le=100),
     db: Session = Depends(get_db),
 ) -> list[DeepReportDetailResponse]:
-    """获取深度报告列表
+    """获取深度报告列表（按创建时间倒序）
+
+    由于飞轮每4小时运行一次，同一天可能有多份报告
 
     Args:
         limit: 返回数量限制
@@ -215,7 +228,7 @@ def list_deep_reports(
     return result
 
 
-@router.get("/{report_id}", response_model=DeepReportDetailResponse)
+@router.get("/deep/{report_id}", response_model=DeepReportDetailResponse)
 def get_deep_report_by_id(
     report_id: int,
     db: Session = Depends(get_db),
@@ -256,7 +269,7 @@ def get_deep_report_by_id(
     )
 
 
-@router.get("/date/{report_date}", response_model=list[DeepReportDetailResponse])
+@router.get("/deep/date/{report_date}", response_model=list[DeepReportDetailResponse])
 def get_deep_reports_by_date(
     report_date: date,
     db: Session = Depends(get_db),

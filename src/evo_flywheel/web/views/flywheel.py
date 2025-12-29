@@ -186,33 +186,57 @@ def render_flywheel_page(client: APIClient) -> None:
 
     # 最新报告查看区域
     st.subheader("📖 最新深度报告")
-    st.markdown("查看最近生成的深度分析报告")
+    st.markdown("查看最近生成的深度分析报告（飞轮每4小时运行一次）")
 
     # 获取最新报告
     today_str = datetime.now().strftime("%Y-%m-%d")
-    reports_response = client.list_deep_reports(limit=5)
+    reports_response = client.list_deep_reports(limit=10)
 
     if reports_response and reports_response.get("content"):
         reports = reports_response["content"]
         if reports:
-            # 显示报告列表
-            for report in reports:
+            # 按日期分组显示
+            current_date = None
+            for i, report in enumerate(reports):
+                report_date = report.get("report_date", today_str)
+                created_at = report.get("created_at", "")
+
+                # 解析创建时间用于显示
+                time_str = ""
+                if created_at:
+                    try:
+                        dt = datetime.fromisoformat(created_at)
+                        time_str = dt.strftime("%H:%M")
+                    except ValueError:
+                        time_str = ""
+
+                # 新日期添加分隔
+                if report_date != current_date:
+                    if current_date is not None:
+                        st.markdown("---")
+                    st.markdown(f"### 📅 {report_date}")
+                    current_date = report_date
+
+                # 报告标题（带时间标记）
+                time_label = f" {time_str}" if time_str else ""
+                is_newest = i == 0
+
                 with st.expander(
-                    f"📅 {report.get('report_date', today_str)} - "
-                    f"{report.get('total_papers', 0)} 篇论文, "
-                    f"{report.get('high_value_papers', 0)} 篇高价值"
+                    f"{'🆕 ' if is_newest else ''}{report.get('total_papers', 0)} 篇论文"
+                    f", {report.get('high_value_papers', 0)} 篇高价值{time_label}",
+                    expanded=is_newest,  # 默认展开最新报告
                 ):
                     # 显示报告内容
                     content = report.get("content", {})
                     if content:
                         # 研究概要
                         if summary := content.get("research_summary"):
-                            st.markdown("### 📌 研究概要")
+                            st.markdown("#### 📌 研究概要")
                             st.markdown(summary)
 
                         # 热点话题
                         if hot_topics := content.get("hot_topics"):
-                            st.markdown("### 🔥 热点话题")
+                            st.markdown("#### 🔥 热点话题")
                             for topic in hot_topics:
                                 st.markdown(
                                     f"- **{topic.get('topic', 'N/A')}**: {topic.get('description', '')}"
@@ -220,7 +244,7 @@ def render_flywheel_page(client: APIClient) -> None:
 
                         # 推荐论文
                         if recommended := content.get("recommended_papers"):
-                            st.markdown("### ⭐ 推荐论文")
+                            st.markdown("#### ⭐ 推荐论文")
                             for i, paper in enumerate(recommended[:5], 1):
                                 st.markdown(f"{i}. **{paper.get('title', 'N/A')}**")
                                 if reason := paper.get("reason"):
