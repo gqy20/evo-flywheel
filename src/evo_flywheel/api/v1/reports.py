@@ -1,38 +1,17 @@
 """报告相关 API 端点"""
 
-import json
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from evo_flywheel.api.converters import daily_report_to_response
 from evo_flywheel.api.deps import get_db
+from evo_flywheel.api.schemas import DeepReportDetailResponse, DeepReportResponse
 from evo_flywheel.db import crud
 from evo_flywheel.db.models import DailyReport
 
 router = APIRouter()
-
-
-class DeepReportResponse(BaseModel):
-    """深度报告响应"""
-
-    id: int = Field(description="报告ID")
-    report_date: str = Field(description="报告日期")
-    total_papers: int = Field(description="总论文数")
-    high_value_papers: int = Field(description="高价值论文数")
-
-
-class DeepReportDetailResponse(BaseModel):
-    """深度报告详情响应"""
-
-    id: int = Field(description="报告ID")
-    report_date: str = Field(description="报告日期")
-    total_papers: int = Field(description="总论文数")
-    high_value_papers: int = Field(description="高价值论文数")
-    top_paper_ids: list[int] = Field(description="顶级论文ID列表")
-    content: dict = Field(description="报告内容（研究概要、热点话题等）")
-    created_at: str = Field(description="创建时间")
 
 
 # ============================================================================
@@ -87,28 +66,7 @@ def list_deep_reports(
     """
     reports = db.query(DailyReport).order_by(DailyReport.created_at.desc()).limit(limit).all()
 
-    result = []
-    for report in reports:
-        content = {}
-        if report.report_content:
-            try:
-                content = json.loads(str(report.report_content))
-            except json.JSONDecodeError:
-                content = {"raw": str(report.report_content)}
-
-        result.append(
-            DeepReportDetailResponse(
-                id=int(report.id),
-                report_date=str(report.report_date),
-                total_papers=int(report.total_papers),
-                high_value_papers=int(report.high_value_papers),
-                top_paper_ids=report.top_papers_list,
-                content=content,
-                created_at=report.created_at.isoformat() if report.created_at else "",
-            )
-        )
-
-    return result
+    return [daily_report_to_response(report) for report in reports]
 
 
 @router.get("/deep/{report_id}", response_model=DeepReportDetailResponse)
@@ -133,23 +91,7 @@ def get_deep_report_by_id(
     if not report:
         raise HTTPException(status_code=404, detail=f"未找到 ID 为 {report_id} 的深度报告")
 
-    # 解析报告内容
-    content = {}
-    if report.report_content:
-        try:
-            content = json.loads(str(report.report_content))
-        except json.JSONDecodeError:
-            content = {"raw": str(report.report_content)}
-
-    return DeepReportDetailResponse(
-        id=int(report.id),
-        report_date=str(report.report_date),
-        total_papers=int(report.total_papers),
-        high_value_papers=int(report.high_value_papers),
-        top_paper_ids=report.top_papers_list,
-        content=content,
-        created_at=report.created_at.isoformat() if report.created_at else "",
-    )
+    return daily_report_to_response(report)
 
 
 @router.get("/deep/date/{report_date}", response_model=list[DeepReportDetailResponse])
@@ -175,28 +117,7 @@ def get_deep_reports_by_date(
         .all()
     )
 
-    result = []
-    for report in reports:
-        content = {}
-        if report.report_content:
-            try:
-                content = json.loads(str(report.report_content))
-            except json.JSONDecodeError:
-                content = {"raw": str(report.report_content)}
-
-        result.append(
-            DeepReportDetailResponse(
-                id=int(report.id),
-                report_date=str(report.report_date),
-                total_papers=int(report.total_papers),
-                high_value_papers=int(report.high_value_papers),
-                top_paper_ids=report.top_papers_list,
-                content=content,
-                created_at=report.created_at.isoformat() if report.created_at else "",
-            )
-        )
-
-    return result
+    return [daily_report_to_response(report) for report in reports]
 
 
 # ============================================================================

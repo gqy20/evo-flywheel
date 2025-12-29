@@ -5,7 +5,7 @@
 
 import json
 
-from evo_flywheel.api.v1.reports import DeepReportDetailResponse
+from evo_flywheel.api.schemas import DeepReportDetailResponse
 from evo_flywheel.db.models import DailyReport
 
 
