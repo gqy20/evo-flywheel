@@ -10,10 +10,9 @@ from typing import Any
 
 import yaml
 from apscheduler.schedulers.background import BackgroundScheduler
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
 
 from evo_flywheel.collectors.orchestrator import collect_from_all_sources
+from evo_flywheel.db.context import get_db_session
 from evo_flywheel.logging import get_logger
 
 logger = get_logger(__name__)
@@ -56,13 +55,9 @@ def run_daily_flywheel() -> dict[str, Any]:
     # 3. 生成深度报告（如果有新分析的论文）
     if stats["analyzed"] > 0:
         try:
-            from evo_flywheel.config import get_settings
             from evo_flywheel.reporters.deep_generator import generate_deep_report
 
-            settings = get_settings()
-            engine = create_engine(settings.effective_database_url)
-
-            with Session(engine) as session:
+            with get_db_session() as session:
                 report = generate_deep_report(date.today(), session)
                 stats["report_generated"] = True
                 logger.info(f"Deep report generated: report_id={report.id}")
@@ -176,17 +171,13 @@ def _save_papers_to_db(papers: list[dict[str, Any]]) -> int:
     Returns:
         int: 实际保存的论文数量
     """
-    from evo_flywheel.config import get_settings
     from evo_flywheel.db import crud
     from evo_flywheel.db.models import Paper
-
-    settings = get_settings()
-    engine = create_engine(settings.effective_database_url)
 
     saved_count = 0
     skipped_count = 0
 
-    with Session(engine) as session:
+    with get_db_session() as session:
         for paper_data in papers:
             try:
                 # 检查是否已存在（通过 DOI 或 URL）
@@ -219,7 +210,6 @@ def _save_papers_to_db(papers: list[dict[str, Any]]) -> int:
                 logger.error(f"Failed to save paper: {paper_data.get('title', 'Unknown')}: {e}")
                 continue
 
-        session.commit()
         logger.info(
             f"Saved {saved_count} new papers to database (skipped {skipped_count} duplicates)"
         )

@@ -6,12 +6,11 @@
 import sys
 from typing import Any
 
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from evo_flywheel.analyzers.batch import analyze_papers_batch
-from evo_flywheel.config import get_settings
 from evo_flywheel.db import crud
+from evo_flywheel.db.context import get_db_session
 from evo_flywheel.db.models import Paper
 from evo_flywheel.logging import get_logger
 from evo_flywheel.vector.client import get_chroma_client
@@ -35,10 +34,7 @@ def _get_unanalyzed_papers(
     Returns:
         list[dict]: 论文数据列表
     """
-    settings = get_settings()
-    engine = create_engine(settings.effective_database_url)
-
-    with Session(engine) as session:
+    with get_db_session() as session:
         query = text("""
             SELECT id, title, abstract, doi, url, authors
             FROM papers
@@ -76,12 +72,9 @@ def _update_analysis_to_db(papers: list[dict[str, Any]]) -> int:
     Returns:
         int: 更新的论文数量
     """
-    settings = get_settings()
-    engine = create_engine(settings.effective_database_url)
-
     updated_count = 0
 
-    with Session(engine) as session:
+    with get_db_session() as session:
         for paper_data in papers:
             # 通过 DOI 或 URL 查找已有论文
             paper = None
@@ -107,7 +100,6 @@ def _update_analysis_to_db(papers: list[dict[str, Any]]) -> int:
             )
             updated_count += 1
 
-        session.commit()
         logger.info(f"更新了 {updated_count} 篇论文的 AI 分析结果")
 
     return updated_count
@@ -174,10 +166,7 @@ def _get_unembedded_papers(max_papers: int | None = None) -> list[dict[str, Any]
     Returns:
         list[dict]: 论文数据列表
     """
-    settings = get_settings()
-    engine = create_engine(settings.effective_database_url)
-
-    with Session(engine) as session:
+    with get_db_session() as session:
         query = text("""
             SELECT id, title, abstract, doi
             FROM papers
@@ -217,15 +206,12 @@ def _save_embeddings_to_chroma(
     Returns:
         int: 成功保存的数量
     """
-    settings = get_settings()
-    engine = create_engine(settings.effective_database_url)
-
     client = get_chroma_client()
     collection = client.get_or_create_collection("evolutionary_papers")
 
     saved_count = 0
 
-    with Session(engine) as session:
+    with get_db_session() as session:
         for paper, vector in zip(papers, vectors, strict=True):
             if not vector:
                 continue
@@ -257,7 +243,6 @@ def _save_embeddings_to_chroma(
             crud.update_paper(session, db_paper.id, embedded=True)
             saved_count += 1
 
-        session.commit()
         logger.info(f"保存了 {saved_count} 个向量到 Chroma")
 
     return saved_count

@@ -30,7 +30,6 @@ class TestGetUnanalyzedPapers:
             ),
         ]
 
-        mock_engine = mock.Mock()
         mock_session = mock.Mock()
         mock_result = mock.Mock()
         mock_result.__iter__ = lambda self: iter(mock_db_result)
@@ -38,16 +37,12 @@ class TestGetUnanalyzedPapers:
         mock_session.__enter__ = mock.Mock(return_value=mock_session)
         mock_session.__exit__ = mock.Mock(return_value=False)
 
-        def mock_session_factory(*args, **kwargs):
+        def mock_get_db_session():
             return mock_session
 
         monkeypatch.setattr(
-            "evo_flywheel.scheduler.analysis.create_engine",
-            lambda x: mock_engine,
-        )
-        monkeypatch.setattr(
-            "evo_flywheel.scheduler.analysis.Session",
-            mock_session_factory,
+            "evo_flywheel.scheduler.analysis.get_db_session",
+            mock_get_db_session,
         )
 
         # Act
@@ -79,13 +74,12 @@ class TestGetUnanalyzedPapers:
         mock_session.__enter__ = mock.Mock(return_value=mock_session)
         mock_session.__exit__ = mock.Mock(return_value=False)
 
+        def mock_get_db_session():
+            return mock_session
+
         monkeypatch.setattr(
-            "evo_flywheel.scheduler.analysis.Session",
-            lambda *args, **kwargs: mock_session,
-        )
-        monkeypatch.setattr(
-            "evo_flywheel.scheduler.analysis.create_engine",
-            lambda x: mock.Mock(),
+            "evo_flywheel.scheduler.analysis.get_db_session",
+            mock_get_db_session,
         )
 
         # Act
@@ -106,13 +100,12 @@ class TestGetUnanalyzedPapers:
         mock_session.__enter__ = mock.Mock(return_value=mock_session)
         mock_session.__exit__ = mock.Mock(return_value=False)
 
+        def mock_get_db_session():
+            return mock_session
+
         monkeypatch.setattr(
-            "evo_flywheel.scheduler.analysis.Session",
-            lambda *args, **kwargs: mock_session,
-        )
-        monkeypatch.setattr(
-            "evo_flywheel.scheduler.analysis.create_engine",
-            lambda x: mock.Mock(),
+            "evo_flywheel.scheduler.analysis.get_db_session",
+            mock_get_db_session,
         )
 
         # Act
@@ -183,19 +176,18 @@ class TestUpdateAnalysisToDb:
             "evo_flywheel.scheduler.analysis.crud.update_paper",
             mock_update_paper,
         )
-        monkeypatch.setattr(
-            "evo_flywheel.scheduler.analysis.create_engine",
-            lambda x: mock.Mock(),
-        )
 
         mock_session = mock.Mock()
         mock_session.__enter__ = mock.Mock(return_value=mock_session)
         mock_session.commit = mock.Mock()
         mock_session.__exit__ = mock.Mock(return_value=False)
 
+        def mock_get_db_session():
+            return mock_session
+
         monkeypatch.setattr(
-            "evo_flywheel.scheduler.analysis.Session",
-            lambda *args, **kwargs: mock_session,
+            "evo_flywheel.scheduler.analysis.get_db_session",
+            mock_get_db_session,
         )
 
         # Act
@@ -244,19 +236,18 @@ class TestUpdateAnalysisToDb:
             "evo_flywheel.scheduler.analysis.crud.update_paper",
             mock_update_paper,
         )
-        monkeypatch.setattr(
-            "evo_flywheel.scheduler.analysis.create_engine",
-            lambda x: mock.Mock(),
-        )
 
         mock_session = mock.Mock()
         mock_session.__enter__ = mock.Mock(return_value=mock_session)
         mock_session.commit = mock.Mock()
         mock_session.__exit__ = mock.Mock(return_value=False)
 
+        def mock_get_db_session():
+            return mock_session
+
         monkeypatch.setattr(
-            "evo_flywheel.scheduler.analysis.Session",
-            lambda *args, **kwargs: mock_session,
+            "evo_flywheel.scheduler.analysis.get_db_session",
+            mock_get_db_session,
         )
 
         # Act
@@ -396,13 +387,12 @@ class TestGetUnembeddedPapers:
         mock_session.__enter__ = mock.Mock(return_value=mock_session)
         mock_session.__exit__ = mock.Mock(return_value=False)
 
+        def mock_get_db_session():
+            return mock_session
+
         monkeypatch.setattr(
-            "evo_flywheel.scheduler.analysis.Session",
-            lambda *args, **kwargs: mock_session,
-        )
-        monkeypatch.setattr(
-            "evo_flywheel.scheduler.analysis.create_engine",
-            lambda x: mock.Mock(),
+            "evo_flywheel.scheduler.analysis.get_db_session",
+            mock_get_db_session,
         )
 
         # Act
@@ -462,19 +452,18 @@ class TestSaveEmbeddingsToChroma:
             "evo_flywheel.scheduler.analysis.crud.update_paper",
             mock_update_paper,
         )
-        monkeypatch.setattr(
-            "evo_flywheel.scheduler.analysis.create_engine",
-            lambda x: mock.Mock(),
-        )
 
         mock_session = mock.Mock()
         mock_session.__enter__ = mock.Mock(return_value=mock_session)
         mock_session.commit = mock.Mock()
         mock_session.__exit__ = mock.Mock(return_value=False)
 
+        def mock_get_db_session():
+            return mock_session
+
         monkeypatch.setattr(
-            "evo_flywheel.scheduler.analysis.Session",
-            lambda *args, **kwargs: mock_session,
+            "evo_flywheel.scheduler.analysis.get_db_session",
+            mock_get_db_session,
         )
 
         # Act
@@ -515,19 +504,18 @@ class TestSaveEmbeddingsToChroma:
             "evo_flywheel.scheduler.analysis.crud.update_paper",
             lambda session, paper_id, **kwargs: mock_db_paper,
         )
-        monkeypatch.setattr(
-            "evo_flywheel.scheduler.analysis.create_engine",
-            lambda x: mock.Mock(),
-        )
 
         mock_session = mock.Mock()
         mock_session.__enter__ = mock.Mock(return_value=mock_session)
         mock_session.commit = mock.Mock()
         mock_session.__exit__ = mock.Mock(return_value=False)
 
+        def mock_get_db_session():
+            return mock_session
+
         monkeypatch.setattr(
-            "evo_flywheel.scheduler.analysis.Session",
-            lambda *args, **kwargs: mock_session,
+            "evo_flywheel.scheduler.analysis.get_db_session",
+            mock_get_db_session,
         )
 
         # Act
