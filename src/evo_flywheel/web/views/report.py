@@ -6,10 +6,9 @@
 from datetime import date, timedelta
 
 import streamlit as st
-from sqlalchemy import create_engine, text
 
-from evo_flywheel.config import get_settings
 from evo_flywheel.logging import get_logger
+from evo_flywheel.web.api_client import APIClient
 
 logger = get_logger(__name__)
 
@@ -22,18 +21,6 @@ REPORT_TEMPLATES = {
     "详细": "```\n# {date} 进化生物学学术报告\n\n## 统计概览\n- 论文总数: {total}\n- 高价值论文: {high_value}\n\n## 内容摘要\n{summary}\n\n## 顶级论文推荐\n{papers}\n\n---\n生成时间: {generated_at}\n```",
     "分析": "# {date} 深度分析报告\n\n## 数据统计\n{stats}\n\n## 研究趋势\n{trends}\n\n## 重点论文\n{papers}\n\n## 建议阅读\n{recommendations}\n```",
 }
-
-
-def get_db_connection():
-    """获取数据库连接"""
-    settings = get_settings()
-    engine = create_engine(
-        settings.database_url,
-        connect_args={"check_same_thread": False}
-        if settings.database_url.startswith("sqlite")
-        else {},
-    )
-    return engine.connect()
 
 
 def render_generation_controls() -> tuple[date, date, str]:
@@ -108,52 +95,36 @@ def generate_report_data(
     Returns:
         dict: 报告数据
     """
-    conn = None
     try:
-        conn = get_db_connection()
+        client = APIClient()
+        result = client.get_papers(skip=0, limit=max_papers, min_score=min_score)
 
-        # 获取日期范围内的论文统计
-        stats_query = text("""
-            SELECT
-                COUNT(*) as total_papers,
-                COUNT(CASE WHEN importance_score >= ? THEN 1 END) as high_value_papers,
-                AVG(importance_score) as avg_score
-            FROM papers
-            WHERE publication_date BETWEEN ? AND ?
-        """)
-        stats = conn.execute(
-            stats_query, (min_score, start_date.isoformat(), end_date.isoformat())
-        ).fetchone()
+        if result is None:
+            logger.error("报告数据获取失败: API 返回 None")
+            return {}
 
-        # 获取顶级论文
-        papers_query = text("""
-            SELECT id, title, authors, abstract, journal, publication_date, importance_score
-            FROM papers
-            WHERE publication_date BETWEEN ? AND ?
-                AND importance_score >= ?
-            ORDER BY importance_score DESC, publication_date DESC
-            LIMIT ?
-        """)
-        top_papers = conn.execute(
-            papers_query,
-            (start_date.isoformat(), end_date.isoformat(), min_score, max_papers),
-        ).fetchall()
+        papers = result.get("papers", [])
+        total = result.get("total", 0)
+
+        # 计算统计信息
+        high_value_count = sum(1 for p in papers if p.get("importance_score", 0) >= min_score)
+        avg_score = sum(p.get("importance_score", 0) for p in papers) / len(papers) if papers else 0
 
         return {
-            "total_papers": stats[0] or 0,
-            "high_value_papers": stats[1] or 0,
-            "avg_score": round(stats[2] or 0, 1),
+            "total_papers": total,
+            "high_value_papers": high_value_count,
+            "avg_score": round(avg_score, 1),
             "top_papers": [
                 {
-                    "id": p[0],
-                    "title": p[1],
-                    "authors": p[2],
-                    "abstract": p[3],
-                    "journal": p[4],
-                    "date": p[5],
-                    "score": p[6],
+                    "id": p.get("id"),
+                    "title": p.get("title"),
+                    "authors": ", ".join(p.get("authors", [])) if p.get("authors") else "",
+                    "abstract": p.get("abstract"),
+                    "journal": p.get("journal"),
+                    "date": p.get("publication_date"),
+                    "score": p.get("importance_score", 0),
                 }
-                for p in top_papers
+                for p in papers
             ],
         }
 
@@ -161,9 +132,6 @@ def generate_report_data(
         logger.error(f"报告数据生成失败: {e}")
         st.error(f"报告数据生成失败: {str(e)}")
         return {}
-    finally:
-        if conn:
-            conn.close()
 
 
 def render_markdown_report(report_data: dict, template_name: str) -> str:
@@ -322,38 +290,14 @@ def render() -> None:
             markdown_content=st.session_state.markdown_content,
         )
 
-    # 历史报告
+    # 历史报告 - 移除，不再直接从数据库读取
+    # 可以改为调用 API 获取历史报告列表
     st.markdown("---")
     st.subheader("📚 历史报告")
 
-    try:
-        conn = get_db_connection()
-        reports = conn.execute(
-            text("""SELECT report_date, total_papers, high_value_papers, created_at
-               FROM daily_reports
-               ORDER BY report_date DESC
-               LIMIT 10""")
-        ).fetchall()
-
-        if reports:
-            for r in reports:
-                with st.container():
-                    col1, col2, col3 = st.columns([3, 1, 1])
-                    with col1:
-                        st.markdown(f"**📅 {r[0]}**")
-                    with col2:
-                        st.caption(f"📄 {r[1]} 篇")
-                    with col3:
-                        st.caption(f"⭐ {r[2]} 篇")
-                    st.markdown("---")
-        else:
-            st.info("暂无历史报告")
-
-        conn.close()
-
-    except Exception as e:
-        logger.error(f"历史报告获取失败: {e}")
-        st.warning("历史报告加载失败")
+    # 这里可以调用 API 获取历史报告列表
+    # 目前暂时显示提示信息
+    st.info("历史报告功能正在开发中，敬请期待")
 
     # 使用提示
     with st.expander("💡 使用提示"):
