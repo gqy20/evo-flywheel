@@ -9,7 +9,7 @@
 
 import json
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import date
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -43,16 +43,10 @@ def generate_deep_report(target_date: date, db: Session) -> DailyReport:
         ValueError: 当天没有已分析的论文
     """
     # 1. 查询当天论文（只取已分析的）
-    next_day = target_date + timedelta(days=1)
-    papers = (
-        db.query(Paper)
-        .filter(
-            Paper.created_at >= target_date,
-            Paper.created_at < next_day,
-            Paper.importance_score.isnot(None),  # 只取已分析的
-        )
-        .order_by(Paper.importance_score.desc())
-        .all()
+    papers = crud.get_papers_by_date_range(
+        db,
+        target_date,
+        only_analyzed=True,
     )
 
     if not papers:

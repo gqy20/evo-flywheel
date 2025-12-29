@@ -1,14 +1,15 @@
 """报告相关 API 端点"""
 
 import json
-from datetime import date, timedelta
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from evo_flywheel.api.deps import get_db
-from evo_flywheel.db.models import DailyReport, Paper
+from evo_flywheel.db import crud
+from evo_flywheel.db.models import DailyReport
 
 router = APIRouter()
 
@@ -47,16 +48,9 @@ def get_today_report(db: Session = Depends(get_db)) -> dict:
     返回今天采集的论文统计和重点推荐
     """
     today = date.today()
-    tomorrow = today + timedelta(days=1)
 
     # 获取今天的论文
-    papers = (
-        db.query(Paper)
-        .filter(Paper.created_at >= today, Paper.created_at < tomorrow)
-        .order_by(Paper.importance_score.desc())
-        .limit(20)
-        .all()
-    )
+    papers = crud.get_papers_by_date_range(db, today, limit=20)
 
     return {
         "date": today.isoformat(),
@@ -216,14 +210,7 @@ def get_report_by_date(
     db: Session = Depends(get_db),
 ) -> dict:
     """获取指定日期的报告（简单版：论文列表）"""
-    next_day = report_date + timedelta(days=1)
-    papers = (
-        db.query(Paper)
-        .filter(Paper.created_at >= report_date, Paper.created_at < next_day)
-        .order_by(Paper.importance_score.desc())
-        .limit(20)
-        .all()
-    )
+    papers = crud.get_papers_by_date_range(db, report_date, limit=20)
 
     return {
         "date": report_date.isoformat(),
