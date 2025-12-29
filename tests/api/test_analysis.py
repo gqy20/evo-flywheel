@@ -26,4 +26,6 @@ def test_trigger_analysis_endpoint_exists():
 
     # 验证端点存在
     routes = [r.path for r in analysis.router.routes]
-    assert "/analysis/trigger" in routes or "/api/v1/analysis/trigger" in routes
+    # 路由路径不包含前缀
+    assert "/trigger" in routes
+    assert "/status" in routes
