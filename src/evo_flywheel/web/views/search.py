@@ -3,10 +3,12 @@
 支持自然语言查询和相似论文推荐
 """
 
+from typing import Any
+
 import streamlit as st
 
 from evo_flywheel.logging import get_logger
-from evo_flywheel.vector import search as vector_search
+from evo_flywheel.web.api_client import APIClient
 
 logger = get_logger(__name__)
 
@@ -14,7 +16,7 @@ logger = get_logger(__name__)
 DEFAULT_N_RESULTS = 10
 
 
-def render_search_input() -> tuple[str, int, dict]:
+def render_search_input() -> tuple[str, int, dict[str, Any]]:
     """渲染搜索输入区域
 
     Returns:
@@ -71,7 +73,7 @@ def render_search_input() -> tuple[str, int, dict]:
             )
 
     # 构建筛选条件
-    filters = {}
+    filters: dict[str, Any] = {}
     if min_score > 0:
         filters["min_score"] = min_score
     if taxa:
@@ -82,7 +84,7 @@ def render_search_input() -> tuple[str, int, dict]:
     return query, n_results, filters
 
 
-def render_search_results(query: str, n_results: int, filters: dict) -> bool:
+def render_search_results(query: str, n_results: int, filters: dict[str, Any]) -> bool:
     """渲染搜索结果
 
     Args:
@@ -98,50 +100,67 @@ def render_search_results(query: str, n_results: int, filters: dict) -> bool:
         return False
 
     try:
-        # 执行语义搜索
-        results = vector_search.semantic_search_by_text(
-            query_text=query,
-            n_results=n_results,
-            where=filters if filters else None,
-        )
+        client = APIClient()
 
-        if results["total"] == 0:
+        # 如果有筛选条件，使用混合搜索；否则使用纯语义搜索
+        if filters.get("taxa") or filters.get("min_score"):
+            result = client.hybrid_search(
+                query=query,
+                taxa=filters.get("taxa"),
+                min_score=filters.get("min_score"),
+                limit=n_results,
+            )
+        else:
+            result = client.semantic_search(
+                query=query,
+                limit=n_results,
+            )
+
+        if result is None:
+            st.error("搜索失败")
+            return False
+
+        results_list = result.get("results", [])
+
+        if not results_list:
             st.info("没有找到相关结果")
             return True
 
         # 显示查询信息
-        st.caption(f"查询: {query} | 找到 {results['total']} 条结果")
+        st.caption(f"查询: {query} | 找到 {len(results_list)} 条结果")
 
         # 显示结果
-        for i, result in enumerate(results["results"], 1):
-            distance = result.get("distance", 1.0)
-            similarity = max(0, (1 - distance) * 100)  # 转换为相似度百分比
+        for i, paper in enumerate(results_list, 1):
+            title = paper.get("title", "无标题")
+            journal = paper.get("journal", "未知")
+            authors = paper.get("authors", [])
+            abstract = paper.get("abstract", "")
+            score = paper.get("importance_score", 0)
+            similarity = paper.get("similarity", 0)
+            taxa = paper.get("taxa", "未知")
 
             with st.container():
                 col1, col2 = st.columns([4, 1])
 
                 with col1:
-                    st.markdown(f"### {i}. {result.get('title', '无标题')}")
-                    st.caption(
-                        f"📄 {result.get('journal', '未知')} | "
-                        f"🧬 {result.get('taxa', '未知')} | "
-                        f"⭐ 评分: {result.get('importance_score', 0)}/100"
-                    )
+                    st.markdown(f"### {i}. {title}")
+                    st.caption(f"📄 {journal} | 🧬 {taxa} | ⭐ 评分: {score}/100")
 
-                    if result.get("authors"):
-                        st.caption(f"👥 {result['authors']}")
+                    if authors:
+                        st.caption(f"👥 {', '.join(authors) if authors else '未知'}")
 
-                    if result.get("abstract"):
-                        with st.expander("显示摘要"):
-                            st.markdown(f"> {result['abstract']}")
+                    if abstract:
+                        show_abstract = st.toggle(
+                            "显示摘要", key=f"search_abstract_{paper.get('id')}"
+                        )
+                        if show_abstract:
+                            st.markdown(f"> {abstract}")
 
                 with col2:
                     # 显示相似度
                     st.metric(
-                        "",
-                        value=f"{similarity:.1f}%",
-                        label="相似度",
-                        help=f"距离: {distance:.4f} (越小越相似)",
+                        "相似度",
+                        value=f"{similarity * 100:.1f}%",
                     )
 
                 st.markdown("---")
@@ -166,29 +185,35 @@ def render_similar_papers(paper_id: int | None = None):
     st.subheader("📎 相似论文推荐")
 
     try:
-        # 获取相似论文
-        results = vector_search.semantic_search_similar_paper(
-            paper_id=paper_id,
-            n_results=5,
-        )
+        client = APIClient()
+        result = client.similar_papers(paper_id=paper_id, limit=5)
 
-        if results["total"] == 0:
+        if result is None:
+            st.warning("获取相似论文失败")
+            return
+
+        results_list = result.get("results", [])
+
+        if not results_list:
             st.info("没有找到相似论文")
             return
 
-        st.caption(f"基于论文 ID: {paper_id} 找到 {results['total']} 篇相似论文")
+        st.caption(f"基于论文 ID: {paper_id} 找到 {len(results_list)} 篇相似论文")
 
-        for i, result in enumerate(results["results"], 1):
+        for i, paper in enumerate(results_list, 1):
+            title = paper.get("title", "无标题")
+            journal = paper.get("journal", "未知")
+            abstract = paper.get("abstract", "")
+            similarity = paper.get("similarity", 0)
+
             with st.container():
-                st.markdown(f"**{i}. {result.get('title', '无标题')}**")
-                st.caption(
-                    f"📄 {result.get('journal', '未知')} | "
-                    f"相似度: {max(0, (1 - result.get('distance', 1)) * 100):.1f}%"
-                )
+                st.markdown(f"**{i}. {title}**")
+                st.caption(f"📄 {journal} | 相似度: {similarity * 100:.1f}%")
 
-                if result.get("abstract"):
-                    with st.expander("显示摘要"):
-                        st.text(result["abstract"])
+                if abstract:
+                    show_abstract = st.toggle("显示摘要", key=f"similar_abstract_{paper.get('id')}")
+                    if show_abstract:
+                        st.text(abstract)
 
                 st.markdown("---")
 
