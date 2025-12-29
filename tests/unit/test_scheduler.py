@@ -8,7 +8,7 @@ from evo_flywheel.scheduler.jobs import (
     collect_daily_papers,
     load_rss_sources,
     main,
-    schedule_daily_collection,
+    schedule_flywheel,
 )
 
 
@@ -172,10 +172,10 @@ class TestCollectDailyPapers:
         assert end == end_date
 
 
-class TestScheduleDailyCollection:
+class TestScheduleFlywheel:
     """调度器配置测试"""
 
-    def test_schedule_daily_collection_configures_scheduler(self, monkeypatch):
+    def test_schedule_flywheel_configures_scheduler(self, monkeypatch):
         """测试调度器配置"""
         # Arrange
         mock_scheduler_cls = mock.Mock()
@@ -185,15 +185,15 @@ class TestScheduleDailyCollection:
         monkeypatch.setattr("evo_flywheel.scheduler.jobs.BackgroundScheduler", mock_scheduler_cls)
 
         # Act
-        scheduler = schedule_daily_collection(hour=9, minute=0)
+        scheduler = schedule_flywheel(interval_hours=4)
 
         # Assert
         mock_scheduler_cls.assert_called_once()
         mock_scheduler.add_job.assert_called_once()
         assert scheduler == mock_scheduler
 
-    def test_schedule_daily_collection_with_custom_time(self, monkeypatch):
-        """测试自定义采集时间"""
+    def test_schedule_flywheel_with_custom_interval(self, monkeypatch):
+        """测试自定义采集间隔"""
         # Arrange
         mock_scheduler_cls = mock.Mock()
         mock_scheduler = mock.Mock()
@@ -202,15 +202,14 @@ class TestScheduleDailyCollection:
         monkeypatch.setattr("evo_flywheel.scheduler.jobs.BackgroundScheduler", mock_scheduler_cls)
 
         # Act
-        schedule_daily_collection(hour=14, minute=30)
+        schedule_flywheel(interval_hours=2)
 
         # Assert
         mock_scheduler.add_job.assert_called_once()
         # 检查 add_job 被调用时的参数
         call_kwargs = mock_scheduler.add_job.call_args.kwargs
-        assert call_kwargs.get("trigger") == "cron"
-        assert call_kwargs.get("hour") == 14
-        assert call_kwargs.get("minute") == 30
+        assert call_kwargs.get("trigger") == "interval"
+        assert call_kwargs.get("hours") == 2
 
 
 class TestMain:
@@ -267,13 +266,11 @@ class TestMain:
 
         call_count = {"schedule_called": False}
 
-        def mock_schedule_daily(hour=9, minute=0):
+        def mock_schedule_flywheel(interval_hours=4):
             call_count["schedule_called"] = True
             return mock_scheduler
 
-        monkeypatch.setattr(
-            "evo_flywheel.scheduler.jobs.schedule_daily_collection", mock_schedule_daily
-        )
+        monkeypatch.setattr("evo_flywheel.scheduler.jobs.schedule_flywheel", mock_schedule_flywheel)
         monkeypatch.setattr("sys.argv", ["evo-fetch", "--schedule"])
         monkeypatch.setattr("time.sleep", mock_sleep_side_effect)
 

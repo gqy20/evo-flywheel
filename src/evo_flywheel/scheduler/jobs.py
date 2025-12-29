@@ -13,6 +13,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from evo_flywheel.collectors.orchestrator import collect_from_all_sources
 from evo_flywheel.db.context import get_db_session
+from evo_flywheel.error_handlers import handle_errors
 from evo_flywheel.logging import get_logger
 
 logger = get_logger(__name__)
@@ -69,6 +70,7 @@ def run_daily_flywheel() -> dict[str, Any]:
     return stats
 
 
+@handle_errors("加载 RSS 源配置", logger, default_return=[])
 def load_rss_sources(config_path: str = "config/sources.yaml") -> list[dict[str, Any]]:
     """加载 RSS 源配置
 
@@ -84,31 +86,27 @@ def load_rss_sources(config_path: str = "config/sources.yaml") -> list[dict[str,
         logger.warning(f"RSS sources config file not found: {config_path}")
         return []
 
-    try:
-        with open(config_file, encoding="utf-8") as f:
-            config = yaml.safe_load(f)
+    with open(config_file, encoding="utf-8") as f:
+        config = yaml.safe_load(f)
 
-        sources: list[dict[str, Any]] = []
+    sources: list[dict[str, Any]] = []
 
-        for source_name, source_config in config.get("sources", {}).items():
-            # 只返回启用的 RSS 源
-            if source_config.get("type") == "rss" and source_config.get("enabled", True):
-                sources.append(
-                    {
-                        "name": source_config.get("name", source_name),
-                        "url": source_config.get("url", ""),
-                        "priority": source_config.get("priority", 999),
-                    }
-                )
+    for source_name, source_config in config.get("sources", {}).items():
+        # 只返回启用的 RSS 源
+        if source_config.get("type") == "rss" and source_config.get("enabled", True):
+            sources.append(
+                {
+                    "name": source_config.get("name", source_name),
+                    "url": source_config.get("url", ""),
+                    "priority": source_config.get("priority", 999),
+                }
+            )
 
-        logger.info(f"Loaded {len(sources)} enabled RSS sources from {config_path}")
-        return sources
-
-    except Exception as e:
-        logger.error(f"Failed to load RSS sources from {config_path}: {e}")
-        return []
+    logger.info(f"Loaded {len(sources)} enabled RSS sources from {config_path}")
+    return sources
 
 
+@handle_errors("每日论文采集", logger, default_return=[])
 def collect_daily_papers(
     rss_sources: list[dict[str, Any]] | None = None,
     start_date: datetime | None = None,
@@ -140,26 +138,21 @@ def collect_daily_papers(
 
     logger.info(f"Collection period: {start_date} to {end_date}")
 
-    try:
-        # 从所有源采集 (参数名与 orchestrator.py 一致)
-        papers = collect_from_all_sources(
-            start_date=start_date,
-            end_date=end_date,
-            rss_sources=rss_sources,
-            category=category,
-        )
+    # 从所有源采集 (参数名与 orchestrator.py 一致)
+    papers = collect_from_all_sources(
+        start_date=start_date,
+        end_date=end_date,
+        rss_sources=rss_sources,
+        category=category,
+    )
 
-        logger.info(f"Daily collection completed: {len(papers)} papers collected")
+    logger.info(f"Daily collection completed: {len(papers)} papers collected")
 
-        # 保存到数据库
-        if papers:
-            _save_papers_to_db(papers)
+    # 保存到数据库
+    if papers:
+        _save_papers_to_db(papers)
 
-        return papers
-
-    except Exception as e:
-        logger.error(f"Daily collection failed: {e}")
-        return []
+    return papers
 
 
 def _save_papers_to_db(papers: list[dict[str, Any]]) -> int:
