@@ -80,3 +80,82 @@ def test_crud_create_collection_log_exists():
     # 验证函数存在
     assert hasattr(crud, "create_collection_log")
     assert callable(crud.create_collection_log)
+
+
+@patch("evo_flywheel.api.v1.collection.load_rss_sources")
+@patch("evo_flywheel.api.v1.collection.collect_from_all_sources")
+def test_trigger_fetch_with_sources_filter(mock_collect, mock_load_sources, client):
+    """测试 sources 参数过滤数据源"""
+    # Mock RSS 源
+    all_sources = [
+        {"name": "biorxiv_api", "url": "...", "source_type": "api"},
+        {"name": "arxiv", "url": "...", "source_type": "rss"},
+        {"name": "plos", "url": "...", "source_type": "rss"},
+    ]
+    mock_load_sources.return_value = all_sources
+
+    # Mock 采集结果
+    mock_collect.return_value = [
+        {
+            "title": "Filtered Paper",
+            "doi": "10.1101/2025.00001",
+            "authors": ["Author"],
+            "abstract": "Abstract",
+            "url": "https://example.com/1",
+            "publication_date": "2025-12-29",
+            "journal": "Test Journal",
+            "source": "biorxiv_api",
+        }
+    ]
+
+    # 请求指定 sources 参数 - 只要 biorxiv_api 和 arxiv
+    response = client.post("/api/v1/collection/fetch?days=7&sources=biorxiv_api,arxiv")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+
+    # 验证 collect_from_all_sources 被调用时传入了过滤后的 rss_sources
+    mock_collect.assert_called_once()
+    call_args = mock_collect.call_args
+    rss_sources_arg = call_args.kwargs.get("rss_sources")
+
+    # 验证 rss_sources 被过滤
+    assert rss_sources_arg is not None
+    source_names = [s.get("name") for s in rss_sources_arg]
+
+    # 应该只包含 biorxiv_api 和 arxiv，不包含 plos
+    assert len(source_names) == 2
+    assert "biorxiv_api" in source_names
+    assert "arxiv" in source_names
+    assert "plos" not in source_names
+
+
+@patch("evo_flywheel.api.v1.collection.load_rss_sources")
+@patch("evo_flywheel.api.v1.collection.collect_from_all_sources")
+@patch("evo_flywheel.api.v1.collection.crud.get_paper_by_doi")
+@patch("evo_flywheel.api.v1.collection.crud.create_paper")
+def test_trigger_fetch_single_source(
+    mock_create, mock_get_paper, mock_collect, mock_load_sources, client
+):
+    """测试单个数据源过滤"""
+    mock_load_sources.return_value = [
+        {"name": "biorxiv_api", "url": "...", "source_type": "api"},
+        {"name": "arxiv", "url": "...", "source_type": "rss"},
+    ]
+
+    mock_collect.return_value = [
+        {"title": "Paper", "doi": "10.1101/2025.00001", "source": "biorxiv_api"}
+    ]
+    mock_get_paper.return_value = None
+
+    response = client.post("/api/v1/collection/fetch?days=7&sources=biorxiv_api")
+    assert response.status_code == 200
+
+    # 验证只使用了 biorxiv_api
+    mock_collect.assert_called_once()
+    call_args = mock_collect.call_args
+    rss_sources = call_args.kwargs.get("rss_sources", [])
+    source_names = [s.get("name") for s in rss_sources]
+
+    # 应该只有 biorxiv_api
+    assert "biorxiv_api" in source_names
