@@ -99,7 +99,7 @@ class DailyReport(Base):
     __tablename__ = "daily_reports"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    report_date = Column(Text, unique=True, nullable=False)
+    report_date = Column(Text, nullable=False)
     total_papers = Column(Integer)
     high_value_papers = Column(Integer)
     top_paper_ids = Column(Text)  # 存储为逗号分隔的ID

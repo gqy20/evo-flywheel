@@ -6,9 +6,13 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 # 添加 src 到 Python 路径
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+from evo_flywheel.db.models import Base
 
 
 @pytest.fixture
@@ -57,3 +61,22 @@ def sample_analysis_result():
         "importance_score": 85,
         "innovation_summary": "First study to document rapid climate adaptation in Drosophila",
     }
+
+
+@pytest.fixture
+def db_session(temp_db_path):
+    """数据库会话 fixture
+
+    每次测试前创建新表，测试后自动回滚
+    """
+    engine = create_engine(f"sqlite:///{temp_db_path}")
+    Base.metadata.create_all(engine)
+
+    TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+    session = TestSessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
+        engine.dispose()

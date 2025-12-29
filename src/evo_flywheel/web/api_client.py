@@ -411,7 +411,7 @@ class APIClient:
         Returns:
             报告详情数据，失败返回 None
         """
-        return self._request("GET", f"/api/v1/reports/deep/{report_date}")
+        return self._request("GET", f"/api/v1/reports/date/{report_date}")
 
     def list_deep_reports(self, limit: int = 10) -> dict[str, Any] | None:
         """获取深度报告列表

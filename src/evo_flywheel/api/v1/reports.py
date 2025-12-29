@@ -175,15 +175,55 @@ def generate_deep_report_endpoint(
         raise HTTPException(status_code=500, detail=f"生成深度报告失败: {e!s}")
 
 
-@router.get("/deep/{report_date}", response_model=DeepReportDetailResponse)
-def get_deep_report_by_date(
-    report_date: date,
+@router.get("/deep", response_model=list[DeepReportDetailResponse])
+def list_deep_reports(
+    limit: int = Query(10, description="返回数量限制", ge=1, le=100),
     db: Session = Depends(get_db),
-) -> DeepReportDetailResponse:
-    """获取指定日期的深度报告详情
+) -> list[DeepReportDetailResponse]:
+    """获取深度报告列表
 
     Args:
-        report_date: 报告日期
+        limit: 返回数量限制
+        db: 数据库会话
+
+    Returns:
+        深度报告列表
+    """
+    reports = db.query(DailyReport).order_by(DailyReport.created_at.desc()).limit(limit).all()
+
+    result = []
+    for report in reports:
+        content = {}
+        if report.report_content:
+            try:
+                content = json.loads(str(report.report_content))
+            except json.JSONDecodeError:
+                content = {"raw": str(report.report_content)}
+
+        result.append(
+            DeepReportDetailResponse(
+                id=int(report.id),
+                report_date=str(report.report_date),
+                total_papers=int(report.total_papers),
+                high_value_papers=int(report.high_value_papers),
+                top_paper_ids=list(report.top_paper_ids) if report.top_paper_ids else [],
+                content=content,
+                created_at=report.created_at.isoformat() if report.created_at else "",
+            )
+        )
+
+    return result
+
+
+@router.get("/{report_id}", response_model=DeepReportDetailResponse)
+def get_deep_report_by_id(
+    report_id: int,
+    db: Session = Depends(get_db),
+) -> DeepReportDetailResponse:
+    """获取指定 ID 的深度报告详情
+
+    Args:
+        report_id: 报告 ID
         db: 数据库会话
 
     Returns:
@@ -192,12 +232,10 @@ def get_deep_report_by_date(
     Raises:
         HTTPException: 报告不存在
     """
-    report = (
-        db.query(DailyReport).filter(DailyReport.report_date == report_date.isoformat()).first()
-    )
+    report = db.query(DailyReport).filter(DailyReport.id == report_id).first()
 
     if not report:
-        raise HTTPException(status_code=404, detail=f"未找到 {report_date} 的深度报告")
+        raise HTTPException(status_code=404, detail=f"未找到 ID 为 {report_id} 的深度报告")
 
     # 解析报告内容
     content = {}
@@ -218,21 +256,28 @@ def get_deep_report_by_date(
     )
 
 
-@router.get("/deep", response_model=list[DeepReportDetailResponse])
-def list_deep_reports(
-    limit: int = Query(10, description="返回数量限制", ge=1, le=100),
+@router.get("/date/{report_date}", response_model=list[DeepReportDetailResponse])
+def get_deep_reports_by_date(
+    report_date: date,
     db: Session = Depends(get_db),
 ) -> list[DeepReportDetailResponse]:
-    """获取深度报告列表
+    """获取指定日期的所有深度报告
+
+    由于飞轮每 4 小时运行一次，同一天可能有多份报告
 
     Args:
-        limit: 返回数量限制
+        report_date: 报告日期
         db: 数据库会话
 
     Returns:
-        深度报告列表
+        按创建时间倒序排列的报告列表
     """
-    reports = db.query(DailyReport).order_by(DailyReport.created_at.desc()).limit(limit).all()
+    reports = (
+        db.query(DailyReport)
+        .filter(DailyReport.report_date == report_date.isoformat())
+        .order_by(DailyReport.created_at.desc())
+        .all()
+    )
 
     result = []
     for report in reports:
