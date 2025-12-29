@@ -25,8 +25,12 @@ def trigger_analysis(
     对未分析的论文进行批量分析，使用 LLM 提取关键信息
     """
     try:
-        # 获取未分析的论文（importance_score 为空）
-        query = db.query(Paper).filter(Paper.importance_score.is_(None))
+        # 获取未分析的论文（importance_score 为空且 abstract 不为空）
+        query = db.query(Paper).filter(
+            Paper.importance_score.is_(None),
+            Paper.abstract.isnot(None),
+            Paper.abstract != "",
+        )
 
         # 应用最低评分过滤
         if min_score is not None:
@@ -60,25 +64,42 @@ def trigger_analysis(
             continue_on_error=True,
         )
 
+        # 构建 ID 到分析结果的映射（更安全，不依赖顺序）
+        id_to_analysis = {}
+        for paper_dict in analyzed_papers:
+            paper_id = paper_dict.get("id")
+            if paper_id is not None:
+                id_to_analysis[paper_id] = paper_dict
+
         # 更新数据库
         analyzed_count = 0
-        for paper_dict, paper_obj in zip(analyzed_papers, papers, strict=True):
+        for paper_obj in papers:
+            paper_id = paper_obj.id
+            analysis_result: dict[str, Any] | None = id_to_analysis.get(paper_id)
+
+            if not analysis_result:
+                logger.warning(f"论文 {paper_id} 的分析结果未找到")
+                continue
+
+            # 类型断言：我们已经检查了 analysis_result 不是 None
+            assert analysis_result is not None  # noqa: B011
+
             # 检查分析是否成功
-            if "_error" in paper_dict:
-                logger.warning(f"论文 {paper_obj.id} 分析失败: {paper_dict['_error']}")
+            if "_error" in analysis_result:
+                logger.warning(f"论文 {paper_id} 分析失败: {analysis_result['_error']}")
                 continue
 
             # 更新数据库记录
-            paper_obj.taxa = paper_dict.get("taxa")  # type: ignore
-            paper_obj.evolutionary_scale = paper_dict.get("evolutionary_scale")  # type: ignore
-            paper_obj.research_method = paper_dict.get("research_method")  # type: ignore
+            paper_obj.taxa = analysis_result.get("taxa")  # type: ignore
+            paper_obj.evolutionary_scale = analysis_result.get("evolutionary_scale")  # type: ignore
+            paper_obj.research_method = analysis_result.get("research_method")  # type: ignore
             # key_findings 是列表，需要使用 key_findings_list 属性存储为 JSON
-            key_findings = paper_dict.get("key_findings")
+            key_findings = analysis_result.get("key_findings")
             if key_findings:
                 paper_obj.key_findings_list = key_findings  # type: ignore
-            paper_obj.evolutionary_mechanism = paper_dict.get("evolutionary_mechanism")  # type: ignore
-            paper_obj.importance_score = paper_dict.get("importance_score")  # type: ignore
-            paper_obj.innovation_summary = paper_dict.get("innovation_summary")  # type: ignore
+            paper_obj.evolutionary_mechanism = analysis_result.get("evolutionary_mechanism")  # type: ignore
+            paper_obj.importance_score = analysis_result.get("importance_score")  # type: ignore
+            paper_obj.innovation_summary = analysis_result.get("innovation_summary")  # type: ignore
 
             analyzed_count += 1
 

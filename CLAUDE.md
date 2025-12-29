@@ -14,14 +14,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - ✅ CRUD 操作模块
 - ✅ 单元测试框架
 
-**里程碑 2 (v0.2.0 - 数据采集层) 即将完成** 🔄
+**里程碑 3 (v0.3.0 - 分析与搜索层) 进行中** 🔄
 - ✅ RSS 采集器 (feedparser)
 - ✅ bioRxiv API 采集器
 - ✅ 数据去重模块 (DOI + title)
 - ✅ 采集编排器 (orchestrator)
 - ✅ 定时调度器 (APScheduler)
-- ✅ CLI 工具 (evo-fetch, evo-init)
-- 🔄 进入里程碑 3 (LLM 分析层)
+- ✅ CLI 工具 (evo-fetch, evo-init, evo-analyze)
+- ✅ LLM 分析模块 (GLM-4.7)
+- ✅ 向量嵌入和语义搜索
+- ✅ FastAPI REST API
+- ✅ Streamlit Web 界面
+- 🔄 里程碑 4 (完善与优化)
 
 ---
 
@@ -69,23 +73,39 @@ evo-flywheel/
 │       ├── __init__.py
 │       ├── config.py         # 配置管理 (pydantic-settings)
 │       ├── logging.py        # 日志配置
-│       ├── api/              # FastAPI endpoints (待开发)
+│       ├── api/              # FastAPI endpoints ✅
+│       │   ├── deps.py       # 依赖注入
+│       │   ├── schemas.py    # Pydantic 模型
+│       │   ├── main.py       # API 入口
+│       │   └── v1/           # API v1 路由
 │       ├── db/               # SQLite models and operations ✅
 │       │   ├── models.py      # SQLAlchemy models
 │       │   ├── crud.py        # CRUD operations
 │       │   └── init.py        # 数据库初始化脚本
 │       ├── vector/           # Chroma integration ✅
-│       │   └── client.py      # Chroma PersistentClient
+│       │   ├── client.py      # Chroma PersistentClient
+│       │   ├── embeddings.py  # Embedding 服务
+│       │   ├── storage.py     # 向量存储
+│       │   ├── search.py      # 语义搜索
+│       │   └── hybrid.py      # 混合搜索
 │       ├── collectors/       # RSS/API data collection ✅
 │       │   ├── rss.py         # RSS feed parser
 │       │   ├── biorxiv.py     # bioRxiv API client
 │       │   ├── dedup.py       # Deduplication logic
 │       │   └── orchestrator.py # Multi-source coordinator
 │       ├── scheduler/        # APScheduler tasks ✅
-│       │   └── jobs.py        # Daily collection jobs
-│       ├── analyzers/        # LLM paper analysis (待开发)
-│       ├── reporters/        # Daily report generation (待开发)
-│       └── web/              # Streamlit UI (待开发)
+│       │   ├── jobs.py        # Daily collection jobs
+│       │   └── analysis.py    # Analysis scheduling
+│       ├── analyzers/        # LLM paper analysis ✅
+│       │   ├── prompts.py     # Prompt 模板
+│       │   ├── llm.py         # GLM-4.7 封装
+│       │   └── batch.py       # 批量处理
+│       ├── reporters/        # Daily report generation ✅
+│       │   └── generator.py   # 报告生成器
+│       └── web/              # Streamlit UI ✅
+│           ├── app.py         # Streamlit 应用入口
+│           ├── api_client.py  # API 客户端
+│           └── views/         # 页面视图
 ├── tests/
 │   ├── __init__.py
 │   ├── conftest.py           # pytest fixtures ✅
@@ -134,6 +154,16 @@ uv run python -m src.evo_flywheel.db.init
 evo-fetch                       # 执行一次采集 (默认最近7天)
 evo-fetch --schedule            # 启动定时调度器 (每日 9:00)
 
+# 论文分析
+evo-analyze                     # 分析未分析的论文 (默认 10 篇)
+evo-analyze --limit 50          # 分析 50 篇论文
+
+# 启动服务器
+./start.sh                      # 同时启动 API 和 Web 界面
+# 或分别启动:
+uvicorn evo_flywheel.api.main:app --reload  # FastAPI (端口 8000)
+streamlit run src/evo_flywheel/web/app.py   # Streamlit (端口 8501)
+
 # 代码检查和格式化 (ruff)
 ruff check .                    # 检查代码
 ruff check . --fix              # 检查并自动修复
@@ -145,8 +175,11 @@ pre-commit run --all-files      # 检查所有文件
 # 运行测试
 pytest                          # 运行所有测试
 pytest tests/unit/              # 只运行单元测试
+pytest tests/api/               # 只运行 API 测试
 pytest -v                       # 详细输出
 pytest --cov=src/evo_flywheel   # 测试覆盖率
+pytest -k "test_papers"         # 运行匹配名称的测试
+pytest tests/api/test_papers.py::test_get_papers -v  # 运行单个测试
 ```
 
 **为什么使用 uv:**
@@ -216,9 +249,23 @@ The system supports 30+ evolutionary biology journals. See `docs/rss.md` for the
 ### Environment Variables (`.env`)
 
 ```bash
-ZHIPU_API_KEY=your-zhipu-api-key
-DATABASE_URL=sqlite:///evo_flywheel.db
+# LLM API (OpenAI 兼容，用于智谱/通义等)
+OPENAI_API_KEY=your-api-key
+OPENAI_BASE_URL=https://open.bigmodel.cn/api/paas/v4  # 智谱 GLM
+
+# Embedding API (用于语义搜索)
+EMBEDDING_API_URL=https://api.openai.com/v1
+EMBEDDING_API_KEY=your-embedding-api-key
+EMBEDDING_MODEL=text-embedding-3-small
+EMBEDDING_DIMENSION=1536
+
+# Database
+DATABASE_URL=sqlite:///data/evo_flywheel.db
 CHROMA_PERSIST_DIR=./chroma_db
+
+# Logging
+LOG_LEVEL=INFO
+LOG_FILE=logs/evo_flywheel.log
 ```
 
 ---
@@ -248,32 +295,24 @@ ANALYSIS_SCHEMA = {
 
 ---
 
-## API Endpoints (Planned)
+## API Endpoints
 
-```
-# Papers
-GET    /api/papers                    # List papers with filters
-GET    /api/papers/{id}               # Paper detail
-POST   /api/papers/analyze            # Analyze single paper
+The FastAPI runs on `http://localhost:8000` with interactive docs at `/api/v1/docs`.
 
-# Semantic Search
-GET    /api/search/semantic?q={query} # Semantic search
-POST   /api/search/similar            # Find similar papers
-GET    /api/search/hybrid             # Hybrid search (filters + semantic)
+**Key Routes** (all under `/api/v1/`):
+- `GET /papers` - List papers with pagination and filters
+- `GET /papers/{id}` - Get paper details
+- `POST /papers/{id}/analyze` - Analyze a paper with LLM
+- `GET /search/semantic` - Semantic search by query
+- `POST /search/similar` - Find similar papers
+- `GET /search/hybrid` - Hybrid search (semantic + filters)
+- `GET /reports/today` - Get today's report
+- `POST /collection/fetch` - Trigger data collection
+- `POST /analysis/trigger` - Trigger batch analysis
+- `POST /embeddings/rebuild` - Rebuild vector index
+- `GET /stats/overview` - System statistics
 
-# Reports
-GET    /api/reports/today             # Today's report
-GET    /api/reports/{date}            # Report by date
-POST   /api/reports/generate          # Manual generation
-
-# Feedback
-POST   /api/feedback                  # Submit rating/comment
-
-# System
-GET    /api/stats/overview            # System statistics
-POST   /api/rss/fetch                 # Manual collection trigger
-POST   /api/embeddings/rebuild        # Rebuild vector index
-```
+See `docs/api.md` for complete API documentation.
 
 ---
 
@@ -284,26 +323,37 @@ See `docs/ROADMAP.md` for detailed 6-phase development plan (2-3 weeks MVP):
 1. **Phase 0**: Project initialization (0.5d) ✅ 完成
 2. **Phase 1**: Data layer - SQLite + Chroma setup (2d) ✅ 完成
 3. **Phase 2**: Collection layer - RSS + bioRxiv API (2d) ✅ 完成
-4. **Phase 3**: Analysis layer - LLM integration (2d)
-5. **Phase 4**: Search layer - Embeddings + semantic search (1.5d)
-6. **Phase 5**: Presentation layer - Streamlit UI (3d)
-7. **Phase 6**: Testing & optimization (2d)
+4. **Phase 3**: Analysis layer - LLM integration (2d) ✅ 完成
+5. **Phase 4**: Search layer - Embeddings + semantic search (1.5d) ✅ 完成
+6. **Phase 5**: Presentation layer - Streamlit UI (3d) ✅ 完成
+7. **Phase 6**: Testing & optimization (2d) 🔄 进行中
 
 ### Completed Milestones
 
-**v0.1.0 - 基础设施** (已完成)
-- Issue #1: 项目初始化 ✅
-- Issue #2: 数据库Schema设计 ✅
-- Issue #3: Chroma集成 ✅
-- Issue #4: 单元测试框架 ✅
-- Issue #5: 数据库CRUD测试 ✅
+**v0.1.0 - 基础设施** ✅
+- 项目初始化 (uv + ruff + pre-commit)
+- 数据库Schema设计 (SQLite + Chroma)
+- 单元测试框架
 
-**v0.2.0 - 数据采集层** (即将完成)
+**v0.2.0 - 数据采集层** ✅
 - RSS feed parser with advanced DOI extraction
 - bioRxiv API client (avoiding Cloudflare)
 - Cross-source deduplication (DOI + title normalization)
 - Multi-source orchestrator with graceful error handling
 - APScheduler with CLI entry points (`evo-fetch`, `evo-init`)
+
+**v0.3.0 - 分析与搜索层** ✅
+- LLM paper analysis (GLM-4.7 via OpenAI-compatible API)
+- Vector embeddings (remote API)
+- Semantic search with Chroma
+- Hybrid search (metadata filters + semantic ranking)
+- FastAPI REST API with comprehensive endpoints
+- Streamlit web interface with multiple views
+
+**v0.4.0 - 完善与优化** 🔄
+- Enhanced testing coverage
+- Performance optimization
+- Bug fixes and refinements
 
 ---
 
@@ -320,9 +370,51 @@ See `docs/ROADMAP.md` for detailed 6-phase development plan (2-3 weeks MVP):
 
 ---
 
-## Key Integration Notes
+## Important Implementation Details
 
-### Chroma PersistentClient (新版 API)
+### Configuration Access Pattern
+
+Always use `get_settings()` to access configuration, never instantiate `Settings` directly:
+
+```python
+from evo_flywheel.config import get_settings
+
+settings = get_settings()
+api_key = settings.openai_api_key
+```
+
+The `database_url` vs `database_path` logic is handled by `settings.effective_database_url` property.
+
+### Database Session Pattern
+
+Use the `get_db()` dependency for FastAPI endpoints. For scripts, use `SessionLocal()` context manager:
+
+```python
+from evo_flywheel.db import SessionLocal
+
+with SessionLocal() as db:
+    papers = get_papers(db, limit=10)
+```
+
+### DOI Extraction and Normalization
+
+The RSS collector uses advanced regex patterns in `collectors/rss.py` to extract DOIs from various formats. DOIs are normalized (lowercased, whitespace stripped) before storage. The deduplication logic in `collectors/dedup.py` checks both DOI and title similarity.
+
+### LLM API Integration
+
+The project uses OpenAI-compatible API (not just OpenAI). Configure via `OPENAI_BASE_URL` for providers like Zhipu (智谱 GLM). The `analyzers/llm.py` module wraps the OpenAI client with retry logic and structured JSON response parsing.
+
+### Vector Storage Linking
+
+Chroma collection uses the same `paper_id` as SQLite for consistency. When storing embeddings, always include metadata (title, source, taxa) for hybrid search filtering.
+
+### Error Handling in Collectors
+
+Each collector (RSS, bioRxiv API) should handle errors gracefully. The orchestrator continues even if one source fails. Check logs for individual source errors.
+
+---
+
+## Chroma PersistentClient (新版 API)
 
 ```python
 import chromadb

@@ -191,6 +191,7 @@ def parse_entry(
         "url": url,
         "publication_date": publication_date,
         "source": source,
+        "journal": source,  # 对于 RSS 数据，source 就是期刊名
     }
 
 

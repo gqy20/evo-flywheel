@@ -427,3 +427,107 @@ class TestAnalyzePapersBatch:
         # Assert
         assert mock_analyze.call_count == 0  # dry_run 不调用 API
         assert len(results) == 2
+
+    def test_analyze_papers_batch_maintains_order_with_concurrency(self, monkeypatch):
+        """测试批量分析在并发情况下保持结果顺序
+
+        这是修复并发结果错位 bug 的关键测试。
+        即使多个论文并发分析，返回的结果顺序也应与输入顺序一致。
+        """
+        # Arrange
+        import time
+
+        import evo_flywheel.analyzers.batch as batch_module
+
+        papers = [
+            {"id": 1, "doi": "10.1234/1", "title": "Paper 1", "abstract": "Abstract 1"},
+            {"id": 2, "doi": "10.1234/2", "title": "Paper 2", "abstract": "Abstract 2"},
+            {"id": 3, "doi": "10.1234/3", "title": "Paper 3", "abstract": "Abstract 3"},
+            {"id": 4, "doi": "10.1234/4", "title": "Paper 4", "abstract": "Abstract 4"},
+            {"id": 5, "doi": "10.1234/5", "title": "Paper 5", "abstract": "Abstract 5"},
+        ]
+
+        # 模拟不同的处理时间，确保完成顺序与提交顺序不同
+        call_order = []
+
+        def mock_analyze_with_delay(title, abstract):
+            call_order.append(title)
+            # 让 Paper 2 和 Paper 4 延迟返回，模拟并发完成顺序不一致
+            if "Paper 2" in title or "Paper 4" in title:
+                time.sleep(0.05)
+            else:
+                time.sleep(0.01)
+
+            return mock.Mock(
+                taxa=f"Taxa for {title}",
+                evolutionary_scale="种群",
+                research_method="实验",
+                key_findings=[f"发现 for {title}"],
+                evolutionary_mechanism="自然选择",
+                importance_score=70 + int(title.split()[-1]),
+                innovation_summary=f"测试 {title}",
+                usage=mock.Mock(total_tokens=100),
+            )
+
+        monkeypatch.setattr("evo_flywheel.analyzers.llm.analyze_paper", mock_analyze_with_delay)
+
+        # Act - 使用并发数为 3，确保并发执行
+        results = batch_module.analyze_papers_batch(papers, max_concurrent=3)
+
+        # Assert
+        assert len(results) == 5
+
+        # 验证结果顺序与输入顺序一致（通过 ID 和 title 匹配）
+        for i, paper in enumerate(papers):
+            assert results[i]["id"] == paper["id"], f"位置 {i} 的 ID 不匹配"
+            assert results[i]["title"] == paper["title"], f"位置 {i} 的 title 不匹配"
+            # 验证分析结果正确关联
+            assert f"Taxa for {paper['title']}" == results[i]["taxa"]
+            assert f"发现 for {paper['title']}" in results[i]["key_findings"]
+
+        # 验证确实并发调用了
+        assert len(call_order) == 5
+
+    def test_analyze_papers_batch_preserves_id_for_matching(self, monkeypatch):
+        """测试批量分析保留原始 ID 用于后续匹配
+
+        验证分析结果中的 id 字段被正确保留，
+        这对于 API 端点通过 ID 匹配更新数据库记录至关重要。
+        """
+        # Arrange
+        import evo_flywheel.analyzers.batch as batch_module
+
+        papers = [
+            {"id": 100, "doi": "10.1234/100", "title": "Paper A", "abstract": "Abstract A"},
+            {"id": 200, "doi": "10.1234/200", "title": "Paper B", "abstract": "Abstract B"},
+            {"id": 300, "doi": "10.1234/300", "title": "Paper C", "abstract": "Abstract C"},
+        ]
+
+        mock_analyze = mock.Mock(
+            return_value=mock.Mock(
+                taxa="Test",
+                evolutionary_scale="种群",
+                research_method="实验",
+                key_findings=["发现"],
+                evolutionary_mechanism="自然选择",
+                importance_score=75,
+                innovation_summary="测试",
+                usage=mock.Mock(total_tokens=100),
+            )
+        )
+
+        monkeypatch.setattr("evo_flywheel.analyzers.llm.analyze_paper", mock_analyze)
+
+        # Act
+        results = batch_module.analyze_papers_batch(papers, max_concurrent=2)
+
+        # Assert - 验证每个结果都保留了正确的 ID
+        assert results[0]["id"] == 100
+        assert results[1]["id"] == 200
+        assert results[2]["id"] == 300
+
+        # 验证可以通过 ID 构建映射（这是 API 端点的使用方式）
+        id_to_analysis = {r["id"]: r for r in results}
+        assert id_to_analysis[100]["id"] == 100
+        assert id_to_analysis[200]["id"] == 200
+        assert id_to_analysis[300]["id"] == 300

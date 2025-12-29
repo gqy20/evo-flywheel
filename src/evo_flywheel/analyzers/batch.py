@@ -214,7 +214,6 @@ def _analyze_concurrent(
     Returns:
         list[dict]: 分析后的论文列表
     """
-    results = []
 
     def _analyze_single(paper: dict[str, Any]) -> dict[str, Any] | None:
         """分析单篇论文
@@ -264,18 +263,26 @@ def _analyze_concurrent(
 
     # 使用线程池并发分析
     with ThreadPoolExecutor(max_workers=max_concurrent) as executor:
-        futures = {executor.submit(_analyze_single, paper): paper for paper in papers}
+        # 存储 future 到原始索引的映射，保证结果顺序一致
+        future_to_index = {
+            executor.submit(_analyze_single, paper): i for i, paper in enumerate(papers)
+        }
 
-        for future in as_completed(futures):
+        # 预分配结果列表，保持原始顺序
+        results: list[dict[str, Any] | None] = [None] * len(papers)
+
+        for future in as_completed(future_to_index):
+            index = future_to_index[future]
             try:
                 result = future.result()
-                if result:
-                    results.append(result)
+                results[index] = result if result else {**papers[index], "_error": "分析返回空结果"}
             except Exception as e:
-                paper = futures[future]
+                paper = papers[index]
                 logger.error(f"处理论文 {paper.get('id', paper.get('doi'))} 时发生错误: {e}")
-                if not continue_on_error:
+                if continue_on_error:
+                    results[index] = {**paper, "_error": str(e)}
+                else:
                     raise
-                results.append({**paper, "_error": str(e)})
 
-    return results
+    # 过滤掉 None 值（理论上不应该有，但为了类型安全）
+    return [r for r in results if r is not None]

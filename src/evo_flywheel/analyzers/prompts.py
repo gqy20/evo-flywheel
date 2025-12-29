@@ -107,7 +107,7 @@ def build_analysis_prompt(title: str, abstract: str) -> str:
 
 ## 输出格式
 
-请以 JSON 格式返回结果：
+请以 JSON 格式返回结果（**只输出 JSON 代码块，不要包含其他任何文字**）：
 
 ```json
 {{
@@ -125,11 +125,12 @@ def build_analysis_prompt(title: str, abstract: str) -> str:
 }}
 ```
 
-注意：
-- 只返回 JSON，不要包含其他解释文字
-- 确保是合法的 JSON 格式
-- key_findings 必须是数组，包含 3-5 个字符串
-- importance_score 必须是 0-100 之间的整数
+**重要提示**：
+1. **只输出 JSON**，开头用 ```json，结尾用 ```，中间不要有任何其他文字
+2. **使用英文标点符号**：冒号(:)、逗号(,)、双引号(")
+3. key_findings 必须是数组，包含 3-5 个字符串
+4. importance_score 必须是 0-100 之间的整数
+5. 数组最后一个元素后面**不要加逗号**
 """
 
     return prompt

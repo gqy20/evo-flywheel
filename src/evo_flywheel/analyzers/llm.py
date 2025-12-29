@@ -63,6 +63,43 @@ def get_openai_client() -> OpenAI:
     )
 
 
+def _fix_json(json_str: str) -> str:
+    """尝试修复常见的 JSON 格式问题
+
+    Args:
+        json_str: 可能有格式问题的 JSON 字符串
+
+    Returns:
+        str: 修复后的 JSON 字符串
+    """
+    # 1. 替换中文标点符号为英文
+    # 使用 Unicode 码点避免转义问题
+    replacements = {
+        "\uff1a": ":",  # 全角冒号
+        "\uff0c": ",",  # 全角逗号
+        "\u3010": "[",  # 【
+        "\u3011": "]",  # 】
+        "\uff08": "(",  # （
+        "\uff09": ")",  # ）
+        "\u201c": '"',  # 中文左引号 ""
+        "\u201d": '"',  # 中文右引号 ""
+        "\u2018": "'",  # 中文左单引号 '
+        "\u2019": "'",  # 中文右单引号 '
+    }
+    for old, new in replacements.items():
+        json_str = json_str.replace(old, new)
+
+    # 2. 移除数组/对象末尾的逗号（在 } 或 ] 之前）
+    json_str = re.sub(r",(\s*[}\]])", r"\1", json_str)
+
+    # 3. 确保字符串用双引号（处理单引号）
+    # 将单引号键值对转换为双引号
+    json_str = re.sub(r"'([^']+)'(\s*:)", r'"\1"\2', json_str)
+    json_str = re.sub(r"(:\s*)'([^']+)'", r'\1"\2"', json_str)
+
+    return json_str
+
+
 def parse_llm_response(response: str) -> AnalysisResult:
     """解析 LLM 返回的 JSON 响应
 
@@ -97,10 +134,17 @@ def parse_llm_response(response: str) -> AnalysisResult:
     if json_match:
         json_str = json_match.group(0)
 
+    # 尝试修复常见的 JSON 格式问题
+    json_str = _fix_json(json_str)
+
     # 解析 JSON
     try:
         data = json.loads(json_str)
     except json.JSONDecodeError as e:
+        # 记录原始响应用于调试
+        logger.error(f"JSON 解析失败: {e}")
+        logger.error(f"原始响应:\n{response[:500]}...")
+        logger.error(f"提取的 JSON 字符串:\n{json_str[:500]}...")
         raise ValueError(f"解析失败: {e}") from e
 
     # 验证必需字段
@@ -169,7 +213,9 @@ def analyze_paper(
     client = get_openai_client()
 
     # 调用 API（带重试）
-    last_error = None
+    last_error: Exception | None = None
+    parse_error_count = 0  # 单独追踪解析错误次数
+
     for attempt in range(max_retries):
         try:
             logger.info(f"调用 LLM API (尝试 {attempt + 1}/{max_retries})")
@@ -204,6 +250,19 @@ def analyze_paper(
 
             return result
 
+        except ValueError as e:
+            # 解析错误：可能是格式问题，记录并重试
+            parse_error_count += 1
+            last_error = e
+            logger.warning(
+                f"JSON 解析失败 (尝试 {attempt + 1}/{max_retries}, 解析错误 #{parse_error_count}): {e}"
+            )
+
+            # 如果还有重试机会，等待后重试
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+                retry_delay *= 2  # 指数退避
+
         except Exception as e:
             last_error = e
             logger.warning(f"API 调用失败 (尝试 {attempt + 1}/{max_retries}): {e}")
@@ -215,4 +274,8 @@ def analyze_paper(
 
     # 所有重试都失败
     logger.error(f"API 调用失败，已达到最大重试次数 ({max_retries})")
-    raise last_error if last_error else Exception("API 调用失败")
+    if parse_error_count > 0:
+        logger.error(f"包含 {parse_error_count} 次解析错误，可能是 LLM 返回格式不规范")
+    if last_error:
+        raise last_error
+    raise Exception("API 调用失败")
