@@ -36,7 +36,7 @@ def _get_unanalyzed_papers(
         list[dict]: 论文数据列表
     """
     settings = get_settings()
-    engine = create_engine(settings.database_url)
+    engine = create_engine(settings.effective_database_url)
 
     with Session(engine) as session:
         query = text("""
@@ -77,7 +77,7 @@ def _update_analysis_to_db(papers: list[dict[str, Any]]) -> int:
         int: 更新的论文数量
     """
     settings = get_settings()
-    engine = create_engine(settings.database_url)
+    engine = create_engine(settings.effective_database_url)
 
     updated_count = 0
 
@@ -175,7 +175,7 @@ def _get_unembedded_papers(max_papers: int | None = None) -> list[dict[str, Any]
         list[dict]: 论文数据列表
     """
     settings = get_settings()
-    engine = create_engine(settings.database_url)
+    engine = create_engine(settings.effective_database_url)
 
     with Session(engine) as session:
         query = text("""
@@ -218,7 +218,7 @@ def _save_embeddings_to_chroma(
         int: 成功保存的数量
     """
     settings = get_settings()
-    engine = create_engine(settings.database_url)
+    engine = create_engine(settings.effective_database_url)
 
     client = get_chroma_client()
     collection = client.get_or_create_collection("evolutionary_papers")

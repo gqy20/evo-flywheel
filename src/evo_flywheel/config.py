@@ -20,6 +20,10 @@ class Settings(BaseSettings):
         default="sqlite:///evo_flywheel.db",
         description="SQLite 数据库路径",
     )
+    database_path: str = Field(
+        default="./data/evo_flywheel.db",
+        description="SQLite 数据库路径（兼容配置）",
+    )
 
     # Chroma 配置
     chroma_persist_dir: str = Field(
@@ -84,6 +88,39 @@ class Settings(BaseSettings):
         default="text-embedding-3-small",
         description="Embedding 模型名称",
     )
+    embedding_dimension: int = Field(
+        default=1536,
+        description="Embedding 向量维度",
+    )
+
+    @property
+    def effective_database_url(self) -> str:
+        """获取有效的数据库 URL
+
+        优先使用 database_path（如果配置了且文件存在），否则使用 database_url
+
+        Returns:
+            str: 数据库连接 URL
+        """
+        from pathlib import Path
+
+        # 优先使用 database_path
+        if self.database_path:
+            path = self.database_path
+            # 如果不是 sqlite:/// 格式，需要转换
+            if not path.startswith("sqlite:///") and not path.startswith("sqlite://"):
+                if (
+                    Path(path).exists()
+                    or path.startswith("./")
+                    or path.startswith("/")
+                    or path.startswith("..")
+                ):
+                    # 文件路径或相对路径
+                    return f"sqlite:///{path.lstrip('/')}"
+                # 其他情况当作原始 URL
+                return path
+            return path
+        return self.database_url
 
     model_config = SettingsConfigDict(
         env_file=".env",
