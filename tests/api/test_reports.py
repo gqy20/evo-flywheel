@@ -31,3 +31,45 @@ def test_generate_report(mock_generate, client):
     assert response.status_code == 200
     data = response.json()
     assert "date" in data
+
+
+def test_generate_daily_report_complete(client, paper_factory):
+    """测试完整生成每日报告（包含数据库查询和排序）"""
+    from datetime import date
+
+    target_date = date.today()
+
+    # 创建测试数据（不同评分）
+    paper_factory(
+        title="High Score Paper",
+        abstract="Important abstract",
+        importance_score=95,
+        key_findings="Finding 1, Finding 2",
+        evolutionary_mechanism="Natural selection",
+    )
+    paper_factory(title="Medium Score Paper", abstract="Medium abstract", importance_score=75)
+    paper_factory(title="Low Score Paper", abstract="Low abstract", importance_score=50)
+
+    # 使用 API 调用生成报告（会使用 test_db）
+    response = client.post("/api/v1/reports/generate")
+    assert response.status_code == 200
+    report = response.json()
+
+    # 验证报告结构
+    assert "date" in report
+    assert "papers" in report
+    assert report["date"] == target_date.isoformat()
+
+    # 验证论文按评分降序排列
+    papers = report["papers"]
+    assert len(papers) >= 3
+    scores = [p["importance_score"] for p in papers if p["importance_score"] is not None]
+    assert scores == sorted(scores, reverse=True)
+
+    # 验证高评分论文包含完整分析字段
+    high_score_paper = next((p for p in papers if p["importance_score"] == 95), None)
+    assert high_score_paper is not None
+    assert high_score_paper["title"] == "High Score Paper"
+    assert high_score_paper["abstract"] == "Important abstract"
+    assert high_score_paper.get("key_findings") == "Finding 1, Finding 2"
+    assert high_score_paper.get("evolutionary_mechanism") == "Natural selection"
