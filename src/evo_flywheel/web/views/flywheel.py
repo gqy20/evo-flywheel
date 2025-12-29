@@ -38,7 +38,7 @@ def render_flywheel_page(client: APIClient) -> None:
 
     with status_col1:
         # 刷新按钮
-        if st.button("🔄 刷新状态", use_container_width=True):
+        if st.button("🔄 刷新状态", key="refresh_status", use_container_width=True):
             st.session_state.flywheel_status = client.get_flywheel_status()
             st.rerun()
 
@@ -81,7 +81,11 @@ def render_flywheel_page(client: APIClient) -> None:
     trigger_col1, trigger_col2 = st.columns([1, 2])
 
     with trigger_col1:
-        if st.button("▶️ 立即触发", use_container_width=True, type="primary"):
+        if st.button(
+            "▶️ 立即触发", key="trigger_flywheel", use_container_width=True, type="primary"
+        ):
+            # 清除旧结果
+            st.session_state.trigger_result = None
             with st.spinner("飞轮运行中..."):
                 result = client.trigger_flywheel()
                 st.session_state.trigger_result = result
@@ -112,6 +116,7 @@ def render_flywheel_page(client: APIClient) -> None:
         is_running = status.get("running", False) if status else False
         if st.button(
             "▶️ 启动调度器",
+            key="start_scheduler",
             use_container_width=True,
             disabled=is_running,
             type="primary" if not is_running else "secondary",
@@ -128,6 +133,7 @@ def render_flywheel_page(client: APIClient) -> None:
     with scheduler_col2:
         if st.button(
             "⏹️ 停止调度器",
+            key="stop_scheduler",
             use_container_width=True,
             disabled=not is_running,
         ):
@@ -156,7 +162,9 @@ def render_flywheel_page(client: APIClient) -> None:
 
     with report_col2:
         date_str = report_date.strftime("%Y-%m-%d")
-        if st.button("📝 生成报告", use_container_width=True):
+        if st.button("📝 生成报告", key="generate_report", use_container_width=True):
+            # 清除旧结果
+            st.session_state.report_result = None
             with st.spinner(f"正在生成 {date_str} 的报告..."):
                 result = client.generate_deep_report(date_str)
                 st.session_state.report_result = result

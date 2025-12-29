@@ -399,4 +399,5 @@ class APIClient:
         if date_str:
             params["date"] = date_str
 
+        # 使用 params 传递查询参数（后端使用 Query 接收）
         return self._request("POST", "/api/v1/reports/generate-deep", params=params)
