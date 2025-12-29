@@ -8,7 +8,8 @@
 
 - **自动采集** - 从 30+ 期刊 RSS 源和 bioRxiv API 自动获取最新论文
 - **智能分析** - 使用 LLM 提取研究物种、进化机制、关键发现和重要性评分
-- **每日报告** - 生成格式化的 Markdown 研究动态
+- **深度报告** - 生成包含研究概要、热点话题、推荐论文的深度分析报告
+- **飞轮自动化** - 每 4 小时自动运行采集 → 分析 → 报告流程
 - **语义搜索** - 基于向量嵌入的自然语言文献检索
 - **Web 界面** - Streamlit 构建的简洁交互界面
 
@@ -16,11 +17,11 @@
 
 ```
 前端:       Streamlit
-后端:       FastAPI (待开发)
+后端:       FastAPI
 数据库:     SQLite + Chroma (向量)
 嵌入服务:   远程 Embedding API (OpenAI 兼容)
 分析:       智谱 GLM-4.7
-调度:       APScheduler
+调度:       APScheduler (4小时间隔)
 代码检查:   ruff (lint + format) + mypy (类型)
 包管理:     uv
 测试:       pytest + pytest-playwright
@@ -28,7 +29,7 @@
 
 ## 开发状态
 
-> 已完成 Milestone 1-8，Web UI 与 FastAPI 后端完全集成
+> 已完成 Milestone 1-9，完整飞轮自动化与深度报告生成
 
 | 里程碑 | 版本 | 状态 | 内容 |
 |--------|------|------|------|
@@ -40,8 +41,9 @@
 | M6 | v0.6.0 | ✅ | 测试优化与部署 |
 | M7 | v0.7.0 | ✅ | FastAPI 后端 (REST API) |
 | M8 | v0.8.0 | ✅ | Web UI 后端集成 (APIClient、论文详情、反馈功能) |
+| M9 | v0.9.0 | ✅ | 飞轮控制 (自动调度、深度报告、多报告支持) |
 
-当前版本: v0.8.0
+当前版本: v0.9.0
 
 ## 快速开始
 
@@ -140,6 +142,7 @@ evo-flywheel/
 │       │       ├── list.py    # 文献列表
 │       │       ├── search.py  # 语义搜索
 │       │       ├── report.py  # 报告生成
+│       │       ├── flywheel.py # 飞轮控制
 │       │       └── detail.py  # 论文详情 + 反馈
 │       ├── api/              # FastAPI REST API ✅
 │       │   ├── main.py       # FastAPI 应用入口
@@ -149,6 +152,7 @@ evo-flywheel/
 │       │       ├── papers.py     # 论文管理
 │       │       ├── search.py     # 搜索
 │       │       ├── reports.py    # 报告
+│       │       ├── flywheel.py   # 飞轮控制
 │       │       ├── collection.py # 数据采集
 │       │       ├── analysis.py   # 分析调度
 │       │       ├── embeddings.py # 向量嵌入
@@ -179,6 +183,7 @@ evo-flywheel/
 └── docs/                     # 设计文档
     ├── PRD.md                # 产品需求文档
     ├── ROADMAP.md            # 开发路线图
+    ├── api.md                # API 文档
     └── rss.md                # RSS 期刊源配置
 ```
 

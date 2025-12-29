@@ -4,7 +4,7 @@ Evo-Flywheel REST API for evolutionary biology literature analysis.
 
 **Base URL**: `http://localhost:8000`
 
-**API Version**: v0.8.0
+**API Version**: v0.9.0
 
 **Interactive Documentation**:
 - Swagger UI: `http://localhost:8000/api/v1/docs`
@@ -18,6 +18,7 @@ Evo-Flywheel REST API for evolutionary biology literature analysis.
 - [论文管理](#论文管理)
 - [搜索](#搜索)
 - [报告](#报告)
+- [飞轮控制](#飞轮控制)
 - [数据采集](#数据采集)
 - [分析调度](#分析调度)
 - [向量嵌入](#向量嵌入)
@@ -273,6 +274,168 @@ Evo-Flywheel REST API for evolutionary biology literature analysis.
 
 **Response**: 生成的报告内容
 
+### GET `/api/v1/reports/deep`
+获取深度报告列表（按创建时间倒序）。
+
+由于飞轮每 4 小时运行一次，同一天可能有多份报告。
+
+**Query Parameters**:
+
+| 参数 | 类型 | 必填 | 默认值 | 描述 |
+|------|------|------|--------|------|
+| limit | integer | 否 | 10 | 返回数量限制 (1-100) |
+
+**Response**:
+```json
+[
+  {
+    "id": 1,
+    "report_date": "2025-12-29",
+    "total_papers": 36,
+    "high_value_papers": 5,
+    "top_paper_ids": [1, 2, 3],
+    "content": {
+      "research_summary": "研究概要",
+      "hot_topics": [
+        {
+          "topic": "热点话题名称",
+          "description": "描述"
+        }
+      ],
+      "recommended_papers": [
+        {
+          "title": "论文标题",
+          "reason": "推荐理由"
+        }
+      ]
+    },
+    "created_at": "2025-12-29T12:00:00"
+  }
+]
+```
+
+### GET `/api/v1/reports/deep/{report_id}`
+获取指定 ID 的深度报告详情。
+
+**Path Parameters**:
+- `report_id` (integer): 报告 ID
+
+**Response**: 同上单个报告对象
+
+**Error Response** (404):
+```json
+{
+  "detail": "未找到 ID 为 1 的深度报告"
+}
+```
+
+### GET `/api/v1/reports/deep/date/{report_date}`
+获取指定日期的所有深度报告。
+
+由于飞轮每 4 小时运行一次，同一天可能有多份报告。
+
+**Path Parameters**:
+- `report_date` (date): 日期，格式 YYYY-MM-DD
+
+**Response**: 同 `/reports/deep`，返回按创建时间倒序的报告列表
+
+### POST `/api/v1/reports/generate-deep`
+生成深度报告，使用 LLM 生成包含研究概要、热点话题、趋势分析的深度报告。
+
+**Query Parameters**:
+
+| 参数 | 类型 | 必填 | 默认值 | 描述 |
+|------|------|------|--------|------|
+| date | string | 否 | - | 目标日期 (YYYY-MM-DD)，默认今天 |
+
+**Response**:
+```json
+{
+  "id": 1,
+  "report_date": "2025-12-29",
+  "total_papers": 36,
+  "high_value_papers": 5
+}
+```
+
+**Error Responses**:
+- 400: 日期格式错误或没有论文
+- 500: 生成失败
+
+---
+
+## 飞轮控制
+
+### POST `/api/v1/flywheel/trigger`
+手动触发一次飞轮运行，执行完整流程：采集论文 → 分析论文 → 生成报告。
+
+**Response**:
+```json
+{
+  "collected": 25,
+  "analyzed": 20,
+  "report_generated": true
+}
+```
+
+**Error Response** (500):
+```json
+{
+  "detail": "飞轮执行失败"
+}
+```
+
+### GET `/api/v1/flywheel/status`
+获取飞轮运行状态。
+
+**Response**:
+```json
+{
+  "running": true,
+  "last_run": "2025-12-29T12:00:00",
+  "next_run": "2025-12-29T16:00:00"
+}
+```
+
+**字段说明**:
+- `running`: 调度器是否运行中
+- `last_run`: 上次运行时间 (ISO 格式)
+- `next_run`: 下次运行时间 (ISO 格式)
+
+### POST `/api/v1/flywheel/schedule`
+控制飞轮调度器，启动或停止自动调度（每 4 小时运行一次）。
+
+**Request Body**:
+```json
+{
+  "action": "start"
+}
+```
+
+**Fields**:
+
+| 字段 | 类型 | 必填 | 描述 |
+|------|------|------|------|
+| action | string | 是 | 操作: "start" 或 "stop" |
+
+**Response** (启动):
+```json
+{
+  "status": "started"
+}
+```
+
+**Response** (停止):
+```json
+{
+  "status": "stopped"
+}
+```
+
+**Error Responses**:
+- 400: 调度器已在运行中 / 调度器未运行 / 无效的操作
+- 500: 启动/停止调度器失败
+
 ---
 
 ## 数据采集
@@ -494,6 +657,80 @@ Evo-Flywheel REST API for evolutionary biology literature analysis.
 | rating | integer | 是 | 评分 1-5 |
 | is_helpful | boolean \| null | 否 | 是否有帮助 |
 | comment | string \| null | 否 | 评论 (最多1000字符) |
+
+### DeepReportResponse
+深度报告响应模型（简化版）。
+
+| 字段 | 类型 | 描述 |
+|------|------|------|
+| id | integer | 报告 ID |
+| report_date | string | 报告日期 (YYYY-MM-DD) |
+| total_papers | integer | 总论文数 |
+| high_value_papers | integer | 高价值论文数 |
+
+### DeepReportDetailResponse
+深度报告详情响应模型（完整版）。
+
+| 字段 | 类型 | 描述 |
+|------|------|------|
+| id | integer | 报告 ID |
+| report_date | string | 报告日期 (YYYY-MM-DD) |
+| total_papers | integer | 总论文数 |
+| high_value_papers | integer | 高价值论文数 |
+| top_paper_ids | integer[] | 顶级论文 ID 列表 |
+| content | object | 报告内容（研究概要、热点话题、推荐论文等） |
+| created_at | string | 创建时间 (ISO 格式) |
+
+**content 字段结构**:
+```json
+{
+  "research_summary": "研究概要",
+  "hot_topics": [
+    {
+      "topic": "热点话题名称",
+      "description": "话题描述"
+    }
+  ],
+  "recommended_papers": [
+    {
+      "title": "论文标题",
+      "reason": "推荐理由"
+    }
+  ]
+}
+```
+
+### FlywheelTriggerResponse
+飞轮触发响应模型。
+
+| 字段 | 类型 | 描述 |
+|------|------|------|
+| collected | integer | 采集的论文数量 |
+| analyzed | integer | 分析的论文数量 |
+| report_generated | boolean | 是否生成了报告 |
+
+### FlywheelStatusResponse
+飞轮状态响应模型。
+
+| 字段 | 类型 | 描述 |
+|------|------|------|
+| running | boolean | 调度器是否运行中 |
+| last_run | string \| null | 上次运行时间 (ISO 格式) |
+| next_run | string \| null | 下次运行时间 (ISO 格式) |
+
+### ScheduleControlRequest
+调度控制请求模型。
+
+| 字段 | 类型 | 必填 | 描述 |
+|------|------|------|------|
+| action | string | 是 | 操作: "start" 或 "stop" |
+
+### ScheduleControlResponse
+调度控制响应模型。
+
+| 字段 | 类型 | 描述 |
+|------|------|------|
+| status | string | 操作后的状态: "started" 或 "stopped" |
 
 ---
 
