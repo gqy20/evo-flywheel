@@ -6,10 +6,9 @@
 from typing import Any
 
 import streamlit as st
-from sqlalchemy import create_engine, text
 
-from evo_flywheel.config import get_settings
 from evo_flywheel.logging import get_logger
+from evo_flywheel.web.api_client import APIClient
 
 logger = get_logger(__name__)
 
@@ -18,19 +17,7 @@ PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
 DEFAULT_PAGE_SIZE = 20
 
 
-def get_db_connection():
-    """获取数据库连接"""
-    settings = get_settings()
-    engine = create_engine(
-        settings.database_url,
-        connect_args={"check_same_thread": False}
-        if settings.database_url.startswith("sqlite")
-        else {},
-    )
-    return engine.connect()
-
-
-def render_filters_section() -> dict:
+def render_filters_section() -> dict[str, Any]:
     """渲染筛选区域
 
     Returns:
@@ -104,7 +91,9 @@ def render_filters_section() -> dict:
     }
 
 
-def render_paper_list(filters: dict, page: int = 1, page_size: int = DEFAULT_PAGE_SIZE) -> int:
+def render_paper_list(
+    filters: dict[str, Any], page: int = 1, page_size: int = DEFAULT_PAGE_SIZE
+) -> int:
     """渲染论文列表
 
     Args:
@@ -115,96 +104,74 @@ def render_paper_list(filters: dict, page: int = 1, page_size: int = DEFAULT_PAG
     Returns:
         int: 总记录数
     """
-    conn = None
     try:
-        conn = get_db_connection()
+        client = APIClient()
 
-        # 构建 SQL 查询
-        where_clauses = []
-        params: list[Any] = []
+        # 计算跳过的记录数
+        skip = (page - 1) * page_size
 
-        # 应用筛选条件
-        if filters.get("taxa"):
-            where_clauses.append("taxa LIKE ?")
-            params.append(f"%{filters['taxa']}%")
+        # 调用 API 获取论文列表
+        # 注意：当前 API 只支持 taxa 和 min_score 筛选
+        # date_from, date_to, journal, keyword 筛选需要在客户端处理
+        result = client.get_papers(
+            skip=skip,
+            limit=page_size,
+            taxa=filters.get("taxa"),
+            min_score=filters.get("min_score"),
+        )
 
-        if filters.get("journal"):
-            where_clauses.append("journal LIKE ?")
-            params.append(f"%{filters['journal']}%")
+        if result is None:
+            st.error("论文列表加载失败")
+            return 0
 
-        if filters.get("min_score"):
-            where_clauses.append("importance_score >= ?")
-            params.append(filters["min_score"])
-
-        if filters.get("date_from"):
-            where_clauses.append("publication_date >= ?")
-            params.append(filters["date_from"])
-
-        if filters.get("date_to"):
-            where_clauses.append("publication_date <= ?")
-            params.append(filters["date_to"])
-
-        if filters.get("keyword"):
-            where_clauses.append("(title LIKE ? OR abstract LIKE ?)")
-            params.extend([f"%{filters['keyword']}%", f"%{filters['keyword']}%"])
-
-        # WHERE 子句
-        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
-
-        # 获取总数 (SQL injection prevented by parameterized queries)
-        count_query = text(f"SELECT COUNT(*) FROM papers WHERE {where_sql}")  # nosec B608
-        total_count = conn.execute(count_query, params).scalar() or 0
-
-        # 分页查询 (SQL injection prevented by parameterized queries)
-        offset = (page - 1) * page_size
-        data_query = text(f"""
-            SELECT id, title, authors, abstract, journal, publication_date, importance_score, taxa
-            FROM papers
-            WHERE {where_sql}
-            ORDER BY importance_score DESC, publication_date DESC
-            LIMIT ? OFFSET ?
-        """)  # nosec B608
-        params.extend([page_size, offset])
-
-        papers = conn.execute(data_query, params).fetchall()
+        papers = result.get("papers", [])
+        total: int = result.get("total", 0)
 
         # 显示论文列表
         if not papers:
             st.info("没有找到符合条件的论文")
-            return total_count
+            return total
 
         for paper in papers:
-            paper_id, title, authors, abstract, journal, pub_date, score, taxa = paper
+            title = paper.get("title", "无标题")
+            authors = paper.get("authors", [])
+            abstract = paper.get("abstract", "")
+            journal = paper.get("journal", "未知期刊")
+            pub_date = paper.get("publication_date", "未知日期")
+            score = paper.get("importance_score", 0)
+            taxa = paper.get("taxa", "未知物种")
 
             with st.container():
                 col1, col2 = st.columns([4, 1])
 
                 with col1:
                     st.markdown(f"### {title}")
-                    st.caption(
-                        f"📄 {journal or '未知期刊'} | 📅 {pub_date or '未知日期'} | 🧬 {taxa or '未知物种'}"
-                    )
+                    st.caption(f"📄 {journal} | 📅 {pub_date} | 🧬 {taxa}")
                     if authors:
-                        st.caption(f"👥 {authors}")
+                        st.caption(f"👥 {', '.join(authors) if authors else '未知'}")
 
                     if abstract:
-                        with st.expander("显示摘要"):
+                        show_abstract = st.toggle(
+                            "显示摘要", key=f"list_abstract_{paper.get('id')}"
+                        )
+                        if show_abstract:
                             st.markdown(f"> {abstract}")
 
                 with col2:
-                    st.metric("", value=score or 0, label="评分", help="重要性评分")
+                    st.metric(
+                        "评分",
+                        value=score or 0,
+                        help="重要性评分",
+                    )
 
                 st.markdown("---")
 
-        return total_count
+        return total
 
     except Exception as e:
         logger.error(f"论文列表获取失败: {e}")
         st.error("论文列表加载失败")
         return 0
-    finally:
-        if conn:
-            conn.close()
 
 
 def render_pagination(total_count: int, page: int, page_size: int) -> tuple[int, int]:

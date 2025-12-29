@@ -3,6 +3,120 @@
 from unittest import mock
 
 
+class TestListPageAPIIntegration:
+    """文献列表页 API 集成测试"""
+
+    @mock.patch("evo_flywheel.web.views.list.APIClient")
+    def test_paper_list_uses_api_client(self, mock_api_client_class):
+        """测试论文列表使用 APIClient"""
+        # Arrange - Mock API 返回
+        mock_client = mock.Mock()
+        mock_client.get_papers.return_value = {
+            "total": 50,
+            "papers": [
+                {
+                    "id": 1,
+                    "title": "Test Paper",
+                    "authors": ["Author A"],
+                    "abstract": "Test abstract",
+                    "journal": "Nature",
+                    "publication_date": "2024-01-01",
+                    "importance_score": 85,
+                }
+            ],
+        }
+        mock_api_client_class.return_value = mock_client
+
+        # Act
+        from evo_flywheel.web.views.list import render_paper_list
+
+        result = render_paper_list(
+            filters={},
+            page=1,
+            page_size=20,
+        )
+
+        # Assert - 验证返回总记录数
+        assert result == 50
+
+    @mock.patch("evo_flywheel.web.views.list.APIClient")
+    def test_paper_list_passes_pagination_params(self, mock_api_client_class):
+        """测试论文列表传递分页参数"""
+        # Arrange
+        mock_client = mock.Mock()
+        mock_client.get_papers.return_value = {"total": 100, "papers": []}
+        mock_api_client_class.return_value = mock_client
+
+        # Act
+        from evo_flywheel.web.views.list import render_paper_list
+
+        render_paper_list(
+            filters={},
+            page=2,
+            page_size=50,
+        )
+
+        # Assert - 验证 get_papers 被调用
+        mock_client.get_papers.assert_called_once()
+        call_kwargs = mock_client.get_papers.call_args.kwargs
+        assert call_kwargs.get("skip") == 50  # (page - 1) * page_size
+        assert call_kwargs.get("limit") == 50
+
+    @mock.patch("evo_flywheel.web.views.list.APIClient")
+    def test_paper_list_applies_min_score_filter(self, mock_api_client_class):
+        """测试论文列表应用最低评分筛选"""
+        # Arrange
+        mock_client = mock.Mock()
+        mock_client.get_papers.return_value = {"total": 10, "papers": []}
+        mock_api_client_class.return_value = mock_client
+
+        # Act
+        from evo_flywheel.web.views.list import render_paper_list
+
+        render_paper_list(
+            filters={"min_score": 80},
+            page=1,
+            page_size=20,
+        )
+
+        # Assert
+        mock_client.get_papers.assert_called_once()
+        call_kwargs = mock_client.get_papers.call_args.kwargs
+        assert call_kwargs.get("min_score") == 80
+
+    @mock.patch("evo_flywheel.web.views.list.APIClient")
+    def test_api_client_error_returns_zero(self, mock_api_client_class):
+        """测试 API 错误时返回 0"""
+        # Arrange - Mock API 返回 None (错误情况)
+        mock_client = mock.Mock()
+        mock_client.get_papers.return_value = None
+        mock_api_client_class.return_value = mock_client
+
+        # Act
+        from evo_flywheel.web.views.list import render_paper_list
+
+        result = render_paper_list(
+            filters={},
+            page=1,
+            page_size=20,
+        )
+
+        # Assert - 应返回 0 表示失败
+        assert result == 0
+
+    @mock.patch("evo_flywheel.web.views.list.APIClient")
+    def test_no_longer_uses_db_connection(self, mock_api_client_class):
+        """测试不再直接使用数据库连接"""
+        # Arrange
+        mock_api_client_class.return_value = mock.Mock()
+
+        # Act
+        from evo_flywheel.web.views import list
+
+        # Assert - get_db_connection 函数应该不再存在
+        assert not hasattr(list, "get_db_connection")
+
+
 class TestListPageRendering:
     """文献列表页渲染测试"""
 
@@ -43,75 +157,6 @@ class TestListPageRendering:
         assert callable(list.render_pagination)
 
 
-class TestListPageFilters:
-    """文献列表页筛选功能测试"""
-
-    def test_filters_support_taxa_selection(self):
-        """测试筛选支持物种选择"""
-        # Arrange & Act
-        from evo_flywheel.web.views import list
-
-        # Assert - 筛选函数存在
-        assert callable(list.render_filters_section)
-
-    def test_filters_support_journal_filter(self):
-        """测试筛选支持期刊过滤"""
-        # Arrange & Act
-        from evo_flywheel.web.views import list
-
-        # Assert
-        assert callable(list.render_filters_section)
-
-    def test_filters_support_min_score(self):
-        """测试筛选支持最低评分"""
-        # Arrange & Act
-        from evo_flywheel.web.views import list
-
-        # Assert
-        assert callable(list.render_filters_section)
-
-    def test_filters_support_date_range(self):
-        """测试筛选支持日期范围"""
-        # Arrange & Act
-        from evo_flywheel.web.views import list
-
-        # Assert
-        assert callable(list.render_filters_section)
-
-
-class TestListPagePaperList:
-    """文献列表页论文列表测试"""
-
-    @mock.patch("evo_flywheel.web.views.list.get_db_connection")
-    def test_paper_list_queries_papers_with_filters(self, mock_get_conn):
-        """测试论文列表应用筛选条件"""
-        # Arrange
-        mock_conn = mock.Mock()
-        mock_conn.execute.return_value.fetchall.return_value = []
-        mock_conn.execute.return_value.fetchmany.return_value = []
-        mock_get_conn.return_value = mock_conn
-
-        # Act
-        from evo_flywheel.web.views.list import render_paper_list
-
-        # Assert - 函数存在
-        assert callable(render_paper_list)
-
-    @mock.patch("evo_flywheel.web.views.list.get_db_connection")
-    def test_paper_list_shows_paper_info(self, mock_get_conn):
-        """测试论文列表显示论文信息"""
-        # Arrange
-        mock_conn = mock.Mock()
-        mock_conn.execute.return_value.fetchall.return_value = []
-        mock_get_conn.return_value = mock_conn
-
-        # Act
-        from evo_flywheel.web.views.list import render_paper_list
-
-        # Assert
-        assert callable(render_paper_list)
-
-
 class TestListPagePagination:
     """文献列表页分页测试"""
 
@@ -130,48 +175,6 @@ class TestListPagePagination:
 
         # Assert
         assert callable(list.render_pagination)
-
-    @mock.patch("evo_flywheel.web.views.list.get_db_connection")
-    def test_pagination_calculates_total_pages(self, mock_get_conn):
-        """测试分页计算总页数"""
-        # Arrange
-        mock_conn = mock.Mock()
-        mock_conn.execute.return_value.scalar.return_value = 100
-        mock_get_conn.return_value = mock_conn
-
-        # Act
-        from evo_flywheel.web.views.list import render_pagination
-
-        # Assert
-        assert callable(render_pagination)
-
-
-class TestListPageSearch:
-    """文献列表页搜索测试"""
-
-    def test_search_has_text_input(self):
-        """测试搜索有文本输入框"""
-        # Arrange & Act
-        from evo_flywheel.web.views import list
-
-        # Assert - 搜索应该在筛选区域
-        assert callable(list.render_filters_section)
-
-
-class TestListPageErrorHandling:
-    """文献列表页错误处理测试"""
-
-    @mock.patch("evo_flywheel.web.views.list.get_db_connection")
-    def test_handles_database_error_gracefully(self, mock_get_conn):
-        """测试数据库错误时优雅处理"""
-        # Arrange
-        mock_get_conn.side_effect = Exception("Database error")
-
-        # Act - 导入模块不应该崩溃
-        from evo_flywheel.web.views import list
-
-        # Assert - 模块可以正常导入
-        assert hasattr(list, "render")
 
 
 class TestListPageExport:
