@@ -15,6 +15,15 @@ def mock_settings():
     return settings
 
 
+@pytest.fixture
+def mock_response():
+    """Mock HTTP 响应"""
+    response = Mock()
+    response.status_code = 200
+    response.raise_for_status = Mock()
+    return response
+
+
 class TestAPIClientInit:
     """APIClient 初始化测试"""
 
@@ -34,13 +43,13 @@ class TestAPIClientInit:
 class TestAPIClientGetStats:
     """APIClient.get_stats_overview 测试"""
 
+    @patch("evo_flywheel.web.api_client.requests.request")
     @patch("evo_flywheel.web.api_client.get_settings")
-    def test_get_stats_overview_returns_data(self, mock_get_settings, mock_settings):
+    def test_get_stats_overview_returns_data(
+        self, mock_get_settings, mock_request, mock_settings, mock_response
+    ):
         """测试获取统计数据成功"""
         mock_get_settings.return_value = mock_settings
-
-        mock_response = Mock()
-        mock_response.status_code = 200
         mock_response.json.return_value = {
             "total_papers": 100,
             "analyzed_papers": 80,
@@ -49,28 +58,28 @@ class TestAPIClientGetStats:
             "analysis_rate": 80.0,
             "embedding_rate": 60.0,
         }
+        mock_request.return_value = mock_response
 
-        with patch("requests.get", return_value=mock_response):
-            from evo_flywheel.web.api_client import APIClient
+        from evo_flywheel.web.api_client import APIClient
 
-            client = APIClient()
-            result = client.get_stats_overview()
+        client = APIClient()
+        result = client.get_stats_overview()
 
-            assert result["total_papers"] == 100
-            assert result["analyzed_papers"] == 80
-            assert result["today_new"] == 5
+        assert result["total_papers"] == 100
+        assert result["analyzed_papers"] == 80
+        assert result["today_new"] == 5
 
 
 class TestAPIClientGetPapers:
     """APIClient.get_papers 测试"""
 
+    @patch("evo_flywheel.web.api_client.requests.request")
     @patch("evo_flywheel.web.api_client.get_settings")
-    def test_get_papers_returns_list(self, mock_get_settings, mock_settings):
+    def test_get_papers_returns_list(
+        self, mock_get_settings, mock_request, mock_settings, mock_response
+    ):
         """测试获取论文列表成功"""
         mock_get_settings.return_value = mock_settings
-
-        mock_response = Mock()
-        mock_response.status_code = 200
         mock_response.json.return_value = {
             "total": 50,
             "papers": [
@@ -83,49 +92,50 @@ class TestAPIClientGetPapers:
                 }
             ],
         }
+        mock_request.return_value = mock_response
 
-        with patch("requests.get", return_value=mock_response):
-            from evo_flywheel.web.api_client import APIClient
+        from evo_flywheel.web.api_client import APIClient
 
-            client = APIClient()
-            result = client.get_papers(skip=0, limit=20)
+        client = APIClient()
+        result = client.get_papers(skip=0, limit=20)
 
-            assert result["total"] == 50
-            assert len(result["papers"]) == 1
-            assert result["papers"][0]["title"] == "Test Paper"
+        assert result["total"] == 50
+        assert len(result["papers"]) == 1
+        assert result["papers"][0]["title"] == "Test Paper"
 
+    @patch("evo_flywheel.web.api_client.requests.request")
     @patch("evo_flywheel.web.api_client.get_settings")
-    def test_get_papers_with_filters(self, mock_get_settings, mock_settings):
+    def test_get_papers_with_filters(
+        self, mock_get_settings, mock_request, mock_settings, mock_response
+    ):
         """测试带筛选条件的论文查询"""
         mock_get_settings.return_value = mock_settings
-
-        mock_response = Mock()
-        mock_response.status_code = 200
         mock_response.json.return_value = {"total": 10, "papers": []}
+        mock_request.return_value = mock_response
 
-        with patch("requests.get", return_value=mock_response) as mock_get:
-            from evo_flywheel.web.api_client import APIClient
+        from evo_flywheel.web.api_client import APIClient
 
-            client = APIClient()
-            client.get_papers(skip=0, limit=20, taxa="Mammalia", min_score=80)
+        client = APIClient()
+        client.get_papers(skip=0, limit=20, taxa="Mammalia", min_score=80)
 
-            # 验证请求参数
-            mock_get.assert_called_once()
-            call_args = mock_get.call_args
-            assert "taxa=Mammalia" in call_args[0][0]
-            assert "min_score=80" in call_args[0][0]
+        # 验证请求参数
+        mock_request.assert_called_once()
+        call_kwargs = mock_request.call_args.kwargs
+        assert "params" in call_kwargs
+        assert call_kwargs["params"]["taxa"] == "Mammalia"
+        assert call_kwargs["params"]["min_score"] == 80
 
 
 class TestAPIClientSemanticSearch:
     """APIClient.semantic_search 测试"""
 
+    @patch("evo_flywheel.web.api_client.requests.request")
     @patch("evo_flywheel.web.api_client.get_settings")
-    def test_semantic_search_returns_results(self, mock_get_settings, mock_settings):
+    def test_semantic_search_returns_results(
+        self, mock_get_settings, mock_request, mock_settings, mock_response
+    ):
         """测试语义搜索成功"""
         mock_get_settings.return_value = mock_settings
-
-        mock_response = Mock()
-        mock_response.status_code = 200
         mock_response.json.return_value = {
             "results": [
                 {
@@ -136,63 +146,72 @@ class TestAPIClientSemanticSearch:
                 }
             ]
         }
+        mock_request.return_value = mock_response
 
-        with patch("requests.get", return_value=mock_response):
-            from evo_flywheel.web.api_client import APIClient
+        from evo_flywheel.web.api_client import APIClient
 
-            client = APIClient()
-            result = client.semantic_search(query="evolutionary genetics", limit=10)
+        client = APIClient()
+        result = client.semantic_search(query="evolutionary genetics", limit=10)
 
-            assert len(result["results"]) == 1
-            assert result["results"][0]["similarity"] == 0.92
+        assert len(result["results"]) == 1
+        assert result["results"][0]["similarity"] == 0.92
 
 
 class TestAPIClientErrorHandling:
     """APIClient 错误处理测试"""
 
+    @patch("evo_flywheel.web.api_client.requests.request")
     @patch("evo_flywheel.web.api_client.get_settings")
-    def test_http_404_returns_none(self, mock_get_settings, mock_settings):
+    def test_http_404_returns_none(self, mock_get_settings, mock_request, mock_settings):
         """测试 404 错误处理"""
         mock_get_settings.return_value = mock_settings
 
         mock_response = Mock()
         mock_response.status_code = 404
-        mock_response.raise_for_status.side_effect = requests.HTTPError("404")
 
-        with patch("requests.get", return_value=mock_response):
-            from evo_flywheel.web.api_client import APIClient
+        http_error = requests.HTTPError("404")
+        http_error.response = mock_response
+        mock_response.raise_for_status.side_effect = http_error
+        mock_request.return_value = mock_response
 
-            client = APIClient()
-            result = client.get_paper(999)
+        from evo_flywheel.web.api_client import APIClient
 
-            assert result is None
+        client = APIClient()
+        result = client.get_paper(999)
 
+        assert result is None
+
+    @patch("evo_flywheel.web.api_client.requests.request")
     @patch("evo_flywheel.web.api_client.get_settings")
-    def test_http_500_returns_none(self, mock_get_settings, mock_settings):
+    def test_http_500_returns_none(self, mock_get_settings, mock_request, mock_settings):
         """测试 500 错误处理"""
         mock_get_settings.return_value = mock_settings
 
         mock_response = Mock()
         mock_response.status_code = 500
-        mock_response.raise_for_status.side_effect = requests.HTTPError("500")
 
-        with patch("requests.get", return_value=mock_response):
-            from evo_flywheel.web.api_client import APIClient
+        http_error = requests.HTTPError("500")
+        http_error.response = mock_response
+        mock_response.raise_for_status.side_effect = http_error
+        mock_request.return_value = mock_response
 
-            client = APIClient()
-            result = client.get_stats_overview()
+        from evo_flywheel.web.api_client import APIClient
 
-            assert result is None
+        client = APIClient()
+        result = client.get_stats_overview()
 
+        assert result is None
+
+    @patch("evo_flywheel.web.api_client.requests.request")
     @patch("evo_flywheel.web.api_client.get_settings")
-    def test_connection_error_returns_none(self, mock_get_settings, mock_settings):
+    def test_connection_error_returns_none(self, mock_get_settings, mock_request, mock_settings):
         """测试连接错误处理"""
         mock_get_settings.return_value = mock_settings
+        mock_request.side_effect = requests.ConnectionError("Connection failed")
 
-        with patch("requests.get", side_effect=requests.ConnectionError("Connection failed")):
-            from evo_flywheel.web.api_client import APIClient
+        from evo_flywheel.web.api_client import APIClient
 
-            client = APIClient()
-            result = client.get_stats_overview()
+        client = APIClient()
+        result = client.get_stats_overview()
 
-            assert result is None
+        assert result is None
