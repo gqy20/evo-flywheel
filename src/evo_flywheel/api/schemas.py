@@ -13,7 +13,8 @@ class PaperResponse(BaseModel):
     doi: str | None
     url: str
     publication_date: str
-    source: str
+    journal: str | None
+    source: str | None
     taxa: str | None
     evolutionary_scale: str | None
     research_method: str | None
@@ -43,6 +44,7 @@ class PaperResponse(BaseModel):
             doi=paper.doi,
             url=paper.url,
             publication_date=str(paper.publication_date),
+            journal=paper.journal,
             source=paper.source,
             taxa=paper.taxa,
             evolutionary_scale=paper.evolutionary_scale,

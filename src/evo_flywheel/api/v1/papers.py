@@ -9,8 +9,10 @@ from evo_flywheel.analyzers.llm import analyze_paper
 from evo_flywheel.api.deps import get_db
 from evo_flywheel.api.schemas import PaperListResponse, PaperResponse
 from evo_flywheel.db.models import Paper
+from evo_flywheel.logging import get_logger
 
 router = APIRouter()
+logger = get_logger(__name__)
 
 
 @router.get("", response_model=PaperListResponse)
@@ -128,28 +130,42 @@ def analyze_batch_papers(
         # 批量分析
         results = analyze_papers_batch(paper_dicts)
 
+        # 构建 ID 到分析结果的映射（避免并发导致顺序错位）
+        id_to_result = {r.get("id"): r for r in results if r.get("id") is not None}
+
         # 更新数据库
         analyzed_count = 0
-        for paper_data, result in zip(paper_dicts, results, strict=True):
-            # 检查是否成功分析（result 包含分析结果字段）
-            if "taxa" not in result:
+        for paper_obj in papers:
+            paper_id = paper_obj.id
+            result = id_to_result.get(paper_id)
+
+            if not result:
+                logger.warning(f"论文 {paper_id} 的分析结果未找到")
                 continue
 
-            paper = db.query(Paper).filter(Paper.id == paper_data["id"]).first()
-            if paper:
-                paper.taxa = result.get("taxa")
-                paper.evolutionary_scale = result.get("evolutionary_scale")
-                paper.research_method = result.get("research_method")
-                paper.evolutionary_mechanism = result.get("evolutionary_mechanism")
-                paper.innovation_summary = result.get("innovation_summary")
-                paper.importance_score = result.get("importance_score")
-                # key_findings 在 batch 返回中可能是字符串或列表
-                key_findings = result.get("key_findings")
-                if isinstance(key_findings, list):
-                    paper.findings_list = key_findings
-                else:
-                    paper.key_findings = key_findings
-                analyzed_count += 1
+            # 检查是否成功分析（result 包含分析结果字段）
+            if "taxa" not in result:
+                logger.warning(f"论文 {paper_id} 分析失败: 缺少必要字段")
+                continue
+
+            # 检查是否有错误标记
+            if "_error" in result:
+                logger.warning(f"论文 {paper_id} 分析失败: {result['_error']}")
+                continue
+
+            paper_obj.taxa = result.get("taxa")
+            paper_obj.evolutionary_scale = result.get("evolutionary_scale")
+            paper_obj.research_method = result.get("research_method")
+            paper_obj.evolutionary_mechanism = result.get("evolutionary_mechanism")
+            paper_obj.innovation_summary = result.get("innovation_summary")
+            paper_obj.importance_score = result.get("importance_score")
+            # key_findings 在 batch 返回中可能是字符串或列表
+            key_findings = result.get("key_findings")
+            if isinstance(key_findings, list):
+                paper_obj.findings_list = key_findings
+            else:
+                paper_obj.key_findings = key_findings
+            analyzed_count += 1
 
         db.commit()
 
