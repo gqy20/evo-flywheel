@@ -3,155 +3,116 @@
 展示今日报告、统计数据和推荐论文
 """
 
-from datetime import datetime
-
 import streamlit as st
-from sqlalchemy import create_engine, text
 
-from evo_flywheel.config import get_settings
 from evo_flywheel.logging import get_logger
+from evo_flywheel.web.api_client import APIClient
 
 logger = get_logger(__name__)
-
-
-def get_db_connection():
-    """获取数据库连接"""
-    settings = get_settings()
-    engine = create_engine(
-        settings.database_url,
-        connect_args={"check_same_thread": False}
-        if settings.database_url.startswith("sqlite")
-        else {},
-    )
-    return engine.connect()
 
 
 def render_stats_section() -> None:
     """渲染统计数据区域"""
     st.subheader("📊 统计数据")
 
-    conn = None
     try:
-        conn = get_db_connection()
+        client = APIClient()
+        stats = client.get_stats_overview()
 
-        # 获取论文总数
-        total_papers = conn.execute(text("SELECT COUNT(*) FROM papers")).scalar() or 0
-
-        # 获取最近7天新增
-        recent_papers = (
-            conn.execute(
-                text("SELECT COUNT(*) FROM papers WHERE created_at >= datetime('now', '-7 days')")
-            ).scalar()
-            or 0
-        )
-
-        # 获取高分论文数量
-        high_score_papers = (
-            conn.execute(text("SELECT COUNT(*) FROM papers WHERE importance_score >= 80")).scalar()
-            or 0
-        )
+        if stats is None:
+            st.error("统计数据加载失败")
+            return
 
         # 显示统计卡片
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric(label="论文总数", value=total_papers)
+            st.metric(label="论文总数", value=stats.get("total_papers", 0))
         with col2:
-            st.metric(label="本周新增", value=recent_papers, delta="7 天内")
+            st.metric(label="今日新增", value=stats.get("today_new", 0))
         with col3:
-            st.metric(label="高分论文", value=high_score_papers, help="重要性评分 ≥ 80")
+            st.metric(
+                label="分析率", value=f"{stats.get('analysis_rate', 0):.1f}%", help="已分析论文比例"
+            )
 
     except Exception as e:
         logger.error(f"统计数据获取失败: {e}")
         st.error("统计数据加载失败")
-    finally:
-        if conn:
-            conn.close()
 
 
 def render_recommendations_section() -> None:
     """渲染推荐论文区域"""
     st.subheader("⭐ 重点推荐")
 
-    conn = None
     try:
-        conn = get_db_connection()
+        client = APIClient()
+        result = client.get_papers(skip=0, limit=5, min_score=80)
 
-        # 获取高分论文
-        papers = conn.execute(
-            text("""
-            SELECT id, title, abstract, authors, journal, publication_date, importance_score
-            FROM papers
-            WHERE importance_score >= 80
-            ORDER BY importance_score DESC, publication_date DESC
-            LIMIT 5
-            """)
-        ).fetchall()
+        if result is None:
+            st.error("推荐论文加载失败")
+            return
+
+        papers = result.get("papers", [])
 
         if not papers:
             st.info("暂无推荐论文")
             return
 
         for i, paper in enumerate(papers, 1):
-            paper_id, title, abstract, authors, journal, pub_date, score = paper
+            title = paper.get("title", "无标题")
+            authors = paper.get("authors", [])
+            journal = paper.get("journal", "未知")
+            pub_date = paper.get("publication_date", "未知")
+            score = paper.get("importance_score", 0)
+            abstract = paper.get("abstract", "")
 
             with st.expander(f"{i}. {title} (评分: {score})", expanded=i == 1):
-                st.markdown(f"**作者**: {authors or '未知'}")
-                st.markdown(f"**期刊**: {journal or '未知'}")
-                st.markdown(f"**发表日期**: {pub_date or '未知'}")
+                st.markdown(f"**作者**: {', '.join(authors) if authors else '未知'}")
+                st.markdown(f"**期刊**: {journal}")
+                st.markdown(f"**发表日期**: {pub_date}")
                 st.markdown(f"**重要性评分**: :star: {score}/100")
 
                 if abstract:
-                    with st.toggle("显示摘要"):
+                    show_abstract = st.toggle("显示摘要", key=f"abstract_{paper.get('id')}")
+                    if show_abstract:
                         st.markdown(f"> {abstract}")
 
     except Exception as e:
         logger.error(f"推荐论文获取失败: {e}")
         st.error("推荐论文加载失败")
-    finally:
-        if conn:
-            conn.close()
 
 
 def render_daily_report_section() -> None:
     """渲染今日报告区域"""
     st.subheader("📅 今日报告")
 
-    today = datetime.now().strftime("%Y-%m-%d")
-    conn = None
-
     try:
-        conn = get_db_connection()
+        client = APIClient()
+        report = client.get_today_report()
 
-        # 尝试获取今日报告
-        report = conn.execute(
-            "SELECT summary, top_papers FROM daily_reports WHERE date = ?", (today,)
-        ).fetchone()
+        if report is None:
+            st.warning("今日报告加载失败")
+            return
 
-        if report:
-            summary, top_papers = report
-            st.success(summary)
+        count = report.get("count", 0)
+        papers = report.get("papers", [])
+        date_str = report.get("date", "未知")
 
-            if top_papers:
+        if count > 0:
+            st.success(f"今日 ({date_str}) 共采集 {count} 篇论文")
+
+            if papers:
                 st.markdown("**今日亮点**:")
-                # top_papers 是 JSON 字符串，需要解析
-                import json
-
-                try:
-                    papers_list = json.loads(top_papers)
-                    for paper in papers_list:
-                        st.markdown(f"- {paper}")
-                except json.JSONDecodeError:
-                    st.caption("(亮点数据格式错误)")
+                for paper in papers[:5]:
+                    title = paper.get("title", "无标题")
+                    score = paper.get("importance_score", 0)
+                    st.markdown(f"- {title} (评分: {score})")
         else:
-            st.info(f"今日 ({today}) 报告尚未生成")
+            st.info(f"今日 ({date_str}) 暂无新论文")
             st.caption("报告将在每日自动采集后生成")
 
     except Exception as e:
         logger.error(f"今日报告获取失败: {e}")
         st.warning("今日报告加载失败")
-    finally:
-        if conn:
-            conn.close()
 
 
 def render() -> None:

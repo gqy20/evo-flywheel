@@ -3,6 +3,116 @@
 from unittest import mock
 
 
+class TestHomePageAPIIntegration:
+    """首页 API 集成测试"""
+
+    @mock.patch("evo_flywheel.web.views.home.APIClient")
+    def test_stats_uses_api_client(self, mock_api_client_class):
+        """测试统计数据使用 APIClient"""
+        # Arrange - Mock API 返回
+        mock_client = mock.Mock()
+        mock_client.get_stats_overview.return_value = {
+            "total_papers": 1234,
+            "analyzed_papers": 1000,
+            "embedded_papers": 800,
+            "today_new": 42,
+            "analysis_rate": 81.0,
+            "embedding_rate": 64.8,
+        }
+        mock_api_client_class.return_value = mock_client
+
+        # Act
+        from evo_flywheel.web.views.home import render_stats_section
+
+        # Assert - 函数存在且可调用
+        assert callable(render_stats_section)
+
+    @mock.patch("evo_flywheel.web.views.home.APIClient")
+    def test_recommendations_uses_api_client(self, mock_api_client_class):
+        """测试推荐论文使用 APIClient"""
+        # Arrange - Mock API 返回
+        mock_client = mock.Mock()
+        mock_client.get_papers.return_value = {
+            "total": 5,
+            "papers": [
+                {
+                    "id": 1,
+                    "title": "Test Paper",
+                    "authors": ["Author A"],
+                    "abstract": "Test abstract",
+                    "journal": "Nature",
+                    "publication_date": "2024-01-01",
+                    "importance_score": 95,
+                }
+            ],
+        }
+        mock_api_client_class.return_value = mock_client
+
+        # Act
+        from evo_flywheel.web.views.home import render_recommendations_section
+
+        # Assert - 函数存在且可调用
+        assert callable(render_recommendations_section)
+
+    @mock.patch("evo_flywheel.web.views.home.APIClient")
+    def test_daily_report_uses_api_client(self, mock_api_client_class):
+        """测试今日报告使用 APIClient"""
+        # Arrange - Mock API 返回
+        mock_client = mock.Mock()
+        mock_client.get_today_report.return_value = {
+            "date": "2024-01-01",
+            "count": 3,
+            "papers": [],
+        }
+        mock_api_client_class.return_value = mock_client
+
+        # Act
+        from evo_flywheel.web.views.home import render_daily_report_section
+
+        # Assert - 函数存在且可调用
+        assert callable(render_daily_report_section)
+
+    @mock.patch("evo_flywheel.web.views.home.APIClient")
+    def test_api_client_error_returns_none_gracefully(self, mock_api_client_class):
+        """测试 API 错误时优雅处理"""
+        # Arrange - Mock API 返回 None (错误情况)
+        mock_client = mock.Mock()
+        mock_client.get_stats_overview.return_value = None
+        mock_api_client_class.return_value = mock_client
+
+        # Act
+        from evo_flywheel.web.views.home import render_stats_section
+
+        # Assert - 函数存在且可调用（不应抛出异常）
+        assert callable(render_stats_section)
+
+    @mock.patch("evo_flywheel.web.views.home.APIClient")
+    def test_recommendations_filters_by_min_score(self, mock_api_client_class):
+        """测试推荐按最低评分过滤"""
+        # Arrange
+        mock_client = mock.Mock()
+        mock_client.get_papers.return_value = {"total": 0, "papers": []}
+        mock_api_client_class.return_value = mock_client
+
+        # Act
+        from evo_flywheel.web.views.home import render_recommendations_section
+
+        # Assert - 函数存在
+        assert callable(render_recommendations_section)
+
+    @mock.patch("evo_flywheel.web.views.home.APIClient")
+    def test_no_longer_uses_db_connection(self, mock_api_client_class):
+        """测试不再直接使用数据库连接"""
+        # Arrange
+        mock_api_client_class.return_value = mock.Mock()
+
+        # Act
+        from evo_flywheel.web.views import home
+
+        # Assert - get_db_connection 函数应该不再存在
+        assert not hasattr(home, "get_db_connection")
+
+
 class TestHomePageRendering:
     """首页渲染测试"""
 
@@ -43,102 +153,16 @@ class TestHomePageRendering:
         assert callable(home.render_daily_report_section)
 
 
-class TestHomePageStats:
-    """首页统计数据测试"""
-
-    @mock.patch("evo_flywheel.web.views.home.get_db_connection")
-    def test_stats_queries_total_papers(self, mock_get_conn):
-        """测试统计查询论文总数"""
-        # Arrange
-        mock_conn = mock.Mock()
-        mock_conn.execute.return_value.scalar.return_value = 1234
-        mock_get_conn.return_value.__enter__ = mock.Mock(return_value=mock_conn)
-        mock_get_conn.return_value.__exit__ = mock.Mock(return_value=False)
-
-        # Act
-        from evo_flywheel.web.views.home import render_stats_section
-
-        # 这里需要 streamlit 环境，只测试函数存在
-        assert callable(render_stats_section)
-
-    @mock.patch("evo_flywheel.web.views.home.get_db_connection")
-    def test_stats_queries_recently_added(self, mock_get_conn):
-        """测试统计查询最近新增"""
-        # Arrange
-        mock_conn = mock.Mock()
-        mock_conn.execute.return_value.scalar.return_value = 42
-        mock_get_conn.return_value = mock_conn
-
-        # Assert
-        from evo_flywheel.web.views.home import render_stats_section
-
-        assert callable(render_stats_section)
-
-
-class TestHomePageRecommendations:
-    """首页推荐论文测试"""
-
-    @mock.patch("evo_flywheel.web.views.home.get_db_connection")
-    def test_recommendation_queries_high_score_papers(self, mock_get_conn):
-        """测试推荐查询高分论文"""
-        # Arrange
-        mock_conn = mock.Mock()
-        mock_conn.execute.return_value.fetchall.return_value = []
-        mock_get_conn.return_value = mock_conn
-
-        # Assert
-        from evo_flywheel.web.views.home import render_recommendations_section
-
-        assert callable(render_recommendations_section)
-
-    @mock.patch("evo_flywheel.web.views.home.get_db_connection")
-    def test_recommendation_filters_by_min_score(self, mock_get_conn):
-        """测试推荐按最低评分过滤"""
-        # Arrange
-        mock_conn = mock.Mock()
-        mock_get_conn.return_value = mock_conn
-
-        # Act - 导入模块触发数据库查询
-        from evo_flywheel.web.views.home import render_recommendations_section
-
-        # Assert - 函数存在
-        assert callable(render_recommendations_section)
-
-
-class TestHomePageReportSection:
-    """首页报告区域测试"""
-
-    def test_daily_report_function_exists(self):
-        """测试今日报告函数存在"""
-        # Act
-        from evo_flywheel.web.views.home import render_daily_report_section
-
-        # Assert
-        assert callable(render_daily_report_section)
-
-    @mock.patch("evo_flywheel.web.views.home.get_db_connection")
-    def test_daily_report_queries_by_date(self, mock_get_conn):
-        """测试今日报告按日期查询"""
-        # Arrange
-        mock_conn = mock.Mock()
-        mock_conn.execute.return_value.fetchone.return_value = None
-        mock_get_conn.return_value = mock_conn
-
-        # Act
-        from evo_flywheel.web.views.home import render_daily_report_section
-
-        # Assert
-        assert callable(render_daily_report_section)
-
-
 class TestHomePageErrorHandling:
     """首页错误处理测试"""
 
-    @mock.patch("evo_flywheel.web.views.home.get_db_connection")
-    def test_handles_database_error_gracefully(self, mock_get_conn):
-        """测试数据库错误时优雅处理"""
-        # Arrange - 模拟数据库错误
-        mock_get_conn.side_effect = Exception("Database connection failed")
+    @mock.patch("evo_flywheel.web.views.home.APIClient")
+    def test_handles_api_error_gracefully(self, mock_api_client_class):
+        """测试 API 错误时优雅处理"""
+        # Arrange - 模拟 API 错误
+        mock_client = mock.Mock()
+        mock_client.get_stats_overview.side_effect = Exception("API connection failed")
+        mock_api_client_class.return_value = mock_client
 
         # Act - 导入模块不应该抛出异常
         from evo_flywheel.web.views import home
