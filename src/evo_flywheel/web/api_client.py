@@ -128,6 +128,17 @@ class APIClient:
         """
         return self._request("GET", f"/api/v1/papers/{paper_id}")
 
+    def get_paper_detail(self, paper_id: int) -> dict[str, Any] | None:
+        """获取单篇论文详情（别名方法）
+
+        Args:
+            paper_id: 论文 ID
+
+        Returns:
+            论文详情数据，失败返回 None
+        """
+        return self.get_paper(paper_id)
+
     def semantic_search(self, query: str, limit: int = 10) -> dict[str, Any] | None:
         """语义搜索论文
 
