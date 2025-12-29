@@ -103,8 +103,11 @@ class DailyReport(Base):
     total_papers = Column(Integer)
     high_value_papers = Column(Integer)
     top_paper_ids = Column(Text)  # 存储为逗号分隔的ID
-    report_content = Column(Text)
+    report_content = Column(Text)  # JSON格式，包含深度分析内容
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+
+    # 关系
+    clusters = relationship("PaperCluster", back_populates="report", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         return f"<DailyReport(date={self.report_date}, total={self.total_papers})>"
@@ -120,6 +123,73 @@ class DailyReport(Base):
     def top_papers_list(self, value: list[int]) -> None:
         """设置顶级论文ID列表"""
         self.top_paper_ids = ",".join(map(str, value))
+
+    @property
+    def report_data(self) -> dict:
+        """获取报告内容（解析JSON）"""
+        if self.report_content:
+            try:
+                return json.loads(self.report_content)
+            except json.JSONDecodeError:
+                return {}
+        return {}
+
+    @report_data.setter
+    def report_data(self, value: dict) -> None:
+        """设置报告内容（序列化为JSON）"""
+        self.report_content = json.dumps(value, ensure_ascii=False)
+
+
+class PaperCluster(Base):
+    """论文聚类表
+
+    用于存储深度报告中的主题聚类信息
+    """
+
+    __tablename__ = "paper_clusters"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    report_id = Column(Integer, ForeignKey("daily_reports.id"), nullable=False)
+    cluster_name = Column(Text, nullable=False)
+    paper_ids = Column(Text, nullable=False)  # 逗号分隔的ID
+    cluster_summary = Column(Text)  # LLM生成的聚类摘要
+    key_findings = Column(Text)  # JSON格式
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+
+    # 关系
+    report = relationship("DailyReport", back_populates="clusters")
+
+    def __repr__(self) -> str:
+        return (
+            f"<PaperCluster(id={self.id}, name='{self.cluster_name}', report_id={self.report_id})>"
+        )
+
+    @property
+    def paper_ids_list(self) -> list[int]:
+        """获取论文ID列表"""
+        if self.paper_ids:
+            return [int(i.strip()) for i in self.paper_ids.split(",") if i.strip()]
+        return []
+
+    @paper_ids_list.setter
+    def paper_ids_list(self, value: list[int]) -> None:
+        """设置论文ID列表"""
+        self.paper_ids = ",".join(map(str, value))
+
+    @property
+    def findings_list(self) -> list[str]:
+        """获取关键发现列表"""
+        if self.key_findings:
+            try:
+                return json.loads(self.key_findings)
+            except json.JSONDecodeError:
+                return []
+        return []
+
+    @findings_list.setter
+    def findings_list(self, value: list[str]) -> None:
+        """设置关键发现列表"""
+        self.key_findings = json.dumps(value, ensure_ascii=False)
 
 
 class Feedback(Base):
