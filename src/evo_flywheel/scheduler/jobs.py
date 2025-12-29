@@ -4,7 +4,7 @@
 """
 
 import sys
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +17,61 @@ from evo_flywheel.collectors.orchestrator import collect_from_all_sources
 from evo_flywheel.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def run_daily_flywheel() -> dict[str, Any]:
+    """运行完整的飞轮流程
+
+    流程：
+    1. 采集新论文
+    2. 分析未分析的论文
+    3. 生成深度报告（如果有新分析的论文）
+
+    Returns:
+        dict: 飞轮运行统计 {collected, analyzed, report_generated}
+    """
+    logger.info("Starting daily flywheel")
+
+    stats = {
+        "collected": 0,
+        "analyzed": 0,
+        "report_generated": False,
+    }
+
+    # 1. 采集论文
+    try:
+        from evo_flywheel.scheduler.analysis import analyze_unanalyzed_papers
+
+        papers = collect_daily_papers()
+        stats["collected"] = len(papers)
+
+        # 2. 分析论文（如果有新论文）
+        if papers:
+            analysis_result = analyze_unanalyzed_papers(max_papers=100)
+            stats["analyzed"] = analysis_result["analyzed"]
+
+    except Exception as e:
+        logger.error(f"Collection or analysis failed: {e}")
+
+    # 3. 生成深度报告（如果有新分析的论文）
+    if stats["analyzed"] > 0:
+        try:
+            from evo_flywheel.config import get_settings
+            from evo_flywheel.reporters.deep_generator import generate_deep_report
+
+            settings = get_settings()
+            engine = create_engine(settings.effective_database_url)
+
+            with Session(engine) as session:
+                report = generate_deep_report(date.today(), session)
+                stats["report_generated"] = True
+                logger.info(f"Deep report generated: report_id={report.id}")
+
+        except Exception as e:
+            logger.error(f"Deep report generation failed: {e}")
+
+    logger.info(f"Flywheel completed: {stats}")
+    return stats
 
 
 def load_rss_sources(config_path: str = "config/sources.yaml") -> list[dict[str, Any]]:
@@ -172,32 +227,30 @@ def _save_papers_to_db(papers: list[dict[str, Any]]) -> int:
     return saved_count
 
 
-def schedule_daily_collection(hour: int = 9, minute: int = 0) -> BackgroundScheduler:
-    """配置每日定时采集任务
+def schedule_flywheel(interval_hours: int = 4) -> BackgroundScheduler:
+    """配置飞轮定时任务
 
     Args:
-        hour: 采集小时（默认 9:00）
-        minute: 采集分钟（默认 0）
+        interval_hours: 执行间隔（小时，默认 4 小时）
 
     Returns:
         BackgroundScheduler: 配置好的调度器实例
     """
-    logger.info(f"Configuring daily collection schedule at {hour:02d}:{minute:02d}")
+    logger.info(f"Configuring flywheel schedule: every {interval_hours} hours")
 
     scheduler = BackgroundScheduler()
 
-    # 添加每日定时任务
+    # 添加周期性飞轮任务
     scheduler.add_job(
-        collect_daily_papers,
-        trigger="cron",
-        hour=hour,
-        minute=minute,
-        id="daily_collection",
-        name="Daily Paper Collection",
+        run_daily_flywheel,
+        trigger="interval",
+        hours=interval_hours,
+        id="flywheel",
+        name="Evolutionary Biology Flywheel",
         replace_existing=True,
     )
 
-    logger.info("Daily collection scheduler configured")
+    logger.info(f"Flywheel scheduler configured (runs every {interval_hours} hours)")
     return scheduler
 
 
@@ -205,18 +258,25 @@ def main() -> None:
     """命令行入口
 
     用法:
-        evo-fetch               # 执行一次采集
-        evo-fetch --schedule    # 启动调度器
+        evo-fetch               # 执行一次飞轮（采集+分析+报告）
+        evo-fetch --schedule    # 启动调度器（4小时间隔）
+        evo-fetch --interval 2  # 自定义间隔（2小时）
     """
     # 检查命令行参数
     if len(sys.argv) > 1 and sys.argv[1] == "--schedule":
         # 调度器模式
-        logger.info("Starting scheduler mode")
-        scheduler = schedule_daily_collection(hour=9, minute=0)
+        interval_hours = 4  # 默认4小时
+
+        # 检查是否有自定义间隔
+        if len(sys.argv) > 2 and sys.argv[2] == "--interval" and len(sys.argv) > 3:
+            interval_hours = int(sys.argv[3])
+
+        logger.info(f"Starting flywheel scheduler mode (every {interval_hours} hours)")
+        scheduler = schedule_flywheel(interval_hours=interval_hours)
         scheduler.start()
 
         try:
-            logger.info("Scheduler is running. Press Ctrl+C to exit.")
+            logger.info("Flywheel scheduler is running. Press Ctrl+C to exit.")
             # 保持程序运行
             import time
 
@@ -228,11 +288,16 @@ def main() -> None:
 
     else:
         # 单次执行模式
-        logger.info("Running single collection")
+        logger.info("Running single flywheel execution")
         try:
-            papers = collect_daily_papers()
-            logger.info(f"Collection completed: {len(papers)} papers")
+            stats = run_daily_flywheel()
+            logger.info(
+                f"Flywheel completed: "
+                f"collected={stats['collected']}, "
+                f"analyzed={stats['analyzed']}, "
+                f"report_generated={stats['report_generated']}"
+            )
         except Exception as e:
-            logger.error(f"Single collection failed: {e}")
+            logger.error(f"Single flywheel execution failed: {e}")
             # 优雅退出，不抛出异常
             return
