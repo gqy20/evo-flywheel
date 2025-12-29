@@ -10,6 +10,7 @@ from evo_flywheel.api.v1 import (
     collection,
     embeddings,
     feedback,
+    flywheel,
     papers,
     reports,
     search,
@@ -57,6 +58,7 @@ app.include_router(stats.router, prefix="/api/v1/stats", tags=["stats"])
 app.include_router(embeddings.router, prefix="/api/v1/embeddings", tags=["embeddings"])
 app.include_router(feedback.router, prefix="/api/v1/feedback", tags=["feedback"])
 app.include_router(analysis.router, prefix="/api/v1/analysis", tags=["analysis"])
+app.include_router(flywheel.router, prefix="/api/v1/flywheel", tags=["flywheel"])
 
 
 @app.get("/")
