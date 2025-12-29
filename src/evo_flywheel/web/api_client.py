@@ -13,19 +13,22 @@ from evo_flywheel.logging import get_logger
 
 logger = get_logger(__name__)
 
+# API 响应类型（字典或列表）
+APIResponse = dict[str, Any] | list[Any] | None
 
-def _parse_json(response: Response) -> dict[str, Any] | None:
+
+def _parse_json(response: Response) -> APIResponse:
     """解析响应 JSON
 
     Args:
         response: HTTP 响应对象
 
     Returns:
-        解析后的字典，失败返回 None
+        解析后的字典或列表（根据 API 返回），失败返回 None
     """
     try:
         result: Any = response.json()
-        if isinstance(result, dict):
+        if isinstance(result, dict | list):
             return result
         return None
     except ValueError:
@@ -49,7 +52,9 @@ class APIClient:
         self.base_url = base_url or getattr(settings, "api_base_url", "http://localhost:8000")
         self.timeout = timeout
 
-    def _request(self, method: str, endpoint: str, **kwargs: Any) -> dict[str, Any] | None:
+    def _request(
+        self, method: str, endpoint: str, **kwargs: Any
+    ) -> dict[str, Any] | list[Any] | None:
         """发送 HTTP 请求
 
         Args:
@@ -58,7 +63,7 @@ class APIClient:
             **kwargs: 传递给 requests 的参数
 
         Returns:
-            响应 JSON 数据，失败返回 None
+            响应 JSON 数据（字典或列表），失败返回 None
         """
         url = f"{self.base_url}{endpoint}"
 
@@ -83,7 +88,7 @@ class APIClient:
             logger.error(f"请求异常: {e}")
             return None
 
-    def get_stats_overview(self) -> dict[str, Any] | None:
+    def get_stats_overview(self) -> APIResponse:
         """获取系统概览统计
 
         Returns:
@@ -97,7 +102,7 @@ class APIClient:
         limit: int = 20,
         taxa: str | None = None,
         min_score: int | None = None,
-    ) -> dict[str, Any] | None:
+    ) -> APIResponse:
         """获取论文列表
 
         Args:
@@ -117,7 +122,7 @@ class APIClient:
 
         return self._request("GET", "/api/v1/papers", params=params)
 
-    def get_paper(self, paper_id: int) -> dict[str, Any] | None:
+    def get_paper(self, paper_id: int) -> APIResponse:
         """获取单篇论文详情
 
         Args:
@@ -128,7 +133,7 @@ class APIClient:
         """
         return self._request("GET", f"/api/v1/papers/{paper_id}")
 
-    def get_paper_detail(self, paper_id: int) -> dict[str, Any] | None:
+    def get_paper_detail(self, paper_id: int) -> APIResponse:
         """获取单篇论文详情（别名方法）
 
         Args:
@@ -139,7 +144,7 @@ class APIClient:
         """
         return self.get_paper(paper_id)
 
-    def semantic_search(self, query: str, limit: int = 10) -> dict[str, Any] | None:
+    def semantic_search(self, query: str, limit: int = 10) -> APIResponse:
         """语义搜索论文
 
         Args:
@@ -152,7 +157,7 @@ class APIClient:
         params: dict[str, str | int] = {"q": query, "limit": limit}
         return self._request("GET", "/api/v1/search/semantic", params=params)
 
-    def similar_papers(self, paper_id: int, limit: int = 5) -> dict[str, Any] | None:
+    def similar_papers(self, paper_id: int, limit: int = 5) -> APIResponse:
         """查找相似论文
 
         Args:
@@ -171,7 +176,7 @@ class APIClient:
         taxa: str | None = None,
         min_score: int | None = None,
         limit: int = 10,
-    ) -> dict[str, Any] | None:
+    ) -> APIResponse:
         """混合搜索（语义+元数据过滤）
 
         Args:
@@ -191,7 +196,7 @@ class APIClient:
 
         return self._request("GET", "/api/v1/search/hybrid", params=params)
 
-    def get_today_report(self) -> dict[str, Any] | None:
+    def get_today_report(self) -> APIResponse:
         """获取今日报告
 
         Returns:
@@ -199,7 +204,7 @@ class APIClient:
         """
         return self._request("GET", "/api/v1/reports/today")
 
-    def get_report_by_date(self, report_date: str) -> dict[str, Any] | None:
+    def get_report_by_date(self, report_date: str) -> APIResponse:
         """获取指定日期的报告
 
         Args:
@@ -210,7 +215,7 @@ class APIClient:
         """
         return self._request("GET", f"/api/v1/reports/{report_date}")
 
-    def generate_report(self, date_str: str | None = None) -> dict[str, Any] | None:
+    def generate_report(self, date_str: str | None = None) -> APIResponse:
         """手动生成指定日期的报告
 
         Args:
@@ -225,7 +230,7 @@ class APIClient:
 
         return self._request("POST", "/api/v1/reports/generate", params=params)
 
-    def analyze_paper(self, paper_id: int) -> dict[str, Any] | None:
+    def analyze_paper(self, paper_id: int) -> APIResponse:
         """分析单篇论文
 
         Args:
@@ -242,7 +247,7 @@ class APIClient:
         rating: int,
         is_helpful: bool | None = None,
         comment: str | None = None,
-    ) -> dict[str, Any] | None:
+    ) -> APIResponse:
         """提交用户反馈
 
         Args:
@@ -265,7 +270,7 @@ class APIClient:
 
         return self._request("POST", "/api/v1/feedback", json=data)
 
-    def get_feedbacks(self, paper_id: int | None = None) -> dict[str, Any] | None:
+    def get_feedbacks(self, paper_id: int | None = None) -> APIResponse:
         """获取反馈列表
 
         Args:
@@ -280,9 +285,7 @@ class APIClient:
 
         return self._request("GET", "/api/v1/feedback", params=params)
 
-    def trigger_collection(
-        self, days: int = 7, sources: str | None = None
-    ) -> dict[str, Any] | None:
+    def trigger_collection(self, days: int = 7, sources: str | None = None) -> APIResponse:
         """触发数据采集
 
         Args:
@@ -298,7 +301,7 @@ class APIClient:
 
         return self._request("POST", "/api/v1/collection/fetch", params=params)
 
-    def get_collection_status(self) -> dict[str, Any] | None:
+    def get_collection_status(self) -> APIResponse:
         """获取采集状态
 
         Returns:
@@ -306,9 +309,7 @@ class APIClient:
         """
         return self._request("GET", "/api/v1/collection/status")
 
-    def trigger_analysis(
-        self, limit: int = 50, min_score: int | None = None
-    ) -> dict[str, Any] | None:
+    def trigger_analysis(self, limit: int = 50, min_score: int | None = None) -> APIResponse:
         """触发论文分析
 
         Args:
@@ -324,7 +325,7 @@ class APIClient:
 
         return self._request("POST", "/api/v1/analysis/trigger", params=params)
 
-    def get_analysis_status(self) -> dict[str, Any] | None:
+    def get_analysis_status(self) -> APIResponse:
         """获取分析状态
 
         Returns:
@@ -332,7 +333,7 @@ class APIClient:
         """
         return self._request("GET", "/api/v1/analysis/status")
 
-    def rebuild_embeddings(self, force: bool = False) -> dict[str, Any] | None:
+    def rebuild_embeddings(self, force: bool = False) -> APIResponse:
         """重建向量索引
 
         Args:
@@ -344,7 +345,7 @@ class APIClient:
         params: dict[str, bool] = {"force": force}
         return self._request("POST", "/api/v1/embeddings/rebuild", params=params)
 
-    def get_embeddings_status(self) -> dict[str, Any] | None:
+    def get_embeddings_status(self) -> APIResponse:
         """获取向量索引状态
 
         Returns:
@@ -354,7 +355,7 @@ class APIClient:
 
     # 飞轮控制相关方法
 
-    def trigger_flywheel(self) -> dict[str, Any] | None:
+    def trigger_flywheel(self) -> APIResponse:
         """手动触发飞轮
 
         Returns:
@@ -362,7 +363,7 @@ class APIClient:
         """
         return self._request("POST", "/api/v1/flywheel/trigger")
 
-    def get_flywheel_status(self) -> dict[str, Any] | None:
+    def get_flywheel_status(self) -> APIResponse:
         """获取飞轮状态
 
         Returns:
@@ -370,7 +371,7 @@ class APIClient:
         """
         return self._request("GET", "/api/v1/flywheel/status")
 
-    def start_flywheel_scheduler(self) -> dict[str, Any] | None:
+    def start_flywheel_scheduler(self) -> APIResponse:
         """启动飞轮调度器
 
         Returns:
@@ -378,7 +379,7 @@ class APIClient:
         """
         return self._request("POST", "/api/v1/flywheel/schedule", json={"action": "start"})
 
-    def stop_flywheel_scheduler(self) -> dict[str, Any] | None:
+    def stop_flywheel_scheduler(self) -> APIResponse:
         """停止飞轮调度器
 
         Returns:
@@ -386,7 +387,7 @@ class APIClient:
         """
         return self._request("POST", "/api/v1/flywheel/schedule", json={"action": "stop"})
 
-    def generate_deep_report(self, date_str: str | None = None) -> dict[str, Any] | None:
+    def generate_deep_report(self, date_str: str | None = None) -> APIResponse:
         """生成深度报告
 
         Args:
@@ -402,7 +403,7 @@ class APIClient:
         # 使用 params 传递查询参数（后端使用 Query 接收）
         return self._request("POST", "/api/v1/reports/generate-deep", params=params)
 
-    def get_deep_report(self, report_id: int) -> dict[str, Any] | None:
+    def get_deep_report(self, report_id: int) -> APIResponse:
         """获取指定 ID 的深度报告详情
 
         Args:
@@ -413,24 +414,36 @@ class APIClient:
         """
         return self._request("GET", f"/api/v1/reports/deep/{report_id}")
 
-    def get_deep_reports_by_date(self, report_date: str) -> dict[str, Any] | None:
+    def get_deep_reports_by_date(self, report_date: str) -> APIResponse:
         """获取指定日期的所有深度报告
 
         Args:
             report_date: 日期字符串 (YYYY-MM-DD)
 
         Returns:
-            报告列表数据，失败返回 None
+            报告列表数据，格式为 {"content": [...]}，失败返回 None
         """
-        return self._request("GET", f"/api/v1/reports/deep/date/{report_date}")
+        result = self._request("GET", f"/api/v1/reports/deep/date/{report_date}")
+        # 兼容列表和字典格式
+        if result is not None and isinstance(result, list):
+            return {"content": result}
+        if result is None:
+            return None
+        return result
 
-    def list_deep_reports(self, limit: int = 10) -> dict[str, Any] | None:
+    def list_deep_reports(self, limit: int = 10) -> APIResponse:
         """获取深度报告列表
 
         Args:
             limit: 返回数量限制
 
         Returns:
-            报告列表数据，失败返回 None
+            报告列表数据，格式为 {"content": [...]}，失败返回 None
         """
-        return self._request("GET", "/api/v1/reports/deep", params={"limit": limit})
+        result = self._request("GET", "/api/v1/reports/deep", params={"limit": limit})
+        # 兼容列表和字典格式
+        if result is not None and isinstance(result, list):
+            return {"content": result}
+        if result is None:
+            return None
+        return result
