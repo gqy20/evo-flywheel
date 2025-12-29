@@ -43,6 +43,39 @@ def test_semantic_search_success(
 
 
 @patch("evo_flywheel.api.v1.search.generate_embedding")
+def test_semantic_search_returns_taxa_and_score(mock_generate_embedding, client, paper_factory):
+    """测试语义搜索返回 taxa 和 importance_score 字段"""
+    mock_generate_embedding.return_value = [0.1] * 4096
+
+    paper_factory(
+        id=1, title="Paper 1", abstract="Abstract 1", taxa="Drosophila", importance_score=85
+    )
+
+    with patch("evo_flywheel.api.v1.search.get_chroma_client") as mock_client:
+        mock_collection = Mock()
+        mock_collection.query.return_value = {
+            "ids": [["1"]],
+            "documents": [["Abstract 1"]],
+            "metadatas": [[{"title": "Paper 1"}]],
+            "distances": [[0.1]],
+        }
+
+        mock_cli = Mock()
+        mock_cli.get_or_create_collection.return_value = mock_collection
+        mock_client.return_value = mock_cli
+
+        response = client.get("/api/v1/search/semantic?q=test")
+        assert response.status_code == 200
+        data = response.json()
+        result = data["results"][0]
+        # 检查返回包含 taxa 和 importance_score
+        assert "taxa" in result
+        assert "importance_score" in result
+        assert result["taxa"] == "Drosophila"
+        assert result["importance_score"] == 85
+
+
+@patch("evo_flywheel.api.v1.search.generate_embedding")
 def test_semantic_search_embedding_error(mock_generate_embedding, client):
     """测试 embedding 生成失败"""
     mock_generate_embedding.side_effect = Exception("API error")
