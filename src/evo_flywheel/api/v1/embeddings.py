@@ -67,7 +67,7 @@ def rebuild_embeddings(
                         "title": paper.title,
                         "authors": paper.authors or "",
                         "publication_date": (
-                            paper.publication_date.isoformat() if paper.publication_date else None
+                            paper.publication_date if paper.publication_date else None
                         ),
                     }
                 )
