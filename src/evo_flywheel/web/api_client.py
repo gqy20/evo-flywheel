@@ -351,3 +351,52 @@ class APIClient:
             索引状态数据，失败返回 None
         """
         return self._request("GET", "/api/v1/embeddings/status")
+
+    # 飞轮控制相关方法
+
+    def trigger_flywheel(self) -> dict[str, Any] | None:
+        """手动触发飞轮
+
+        Returns:
+            飞轮执行结果，包含 collected, analyzed, report_generated
+        """
+        return self._request("POST", "/api/v1/flywheel/trigger")
+
+    def get_flywheel_status(self) -> dict[str, Any] | None:
+        """获取飞轮状态
+
+        Returns:
+            飞轮状态数据，包含 running, last_run, next_run
+        """
+        return self._request("GET", "/api/v1/flywheel/status")
+
+    def start_flywheel_scheduler(self) -> dict[str, Any] | None:
+        """启动飞轮调度器
+
+        Returns:
+            操作结果，包含 status="started"
+        """
+        return self._request("POST", "/api/v1/flywheel/schedule", json={"action": "start"})
+
+    def stop_flywheel_scheduler(self) -> dict[str, Any] | None:
+        """停止飞轮调度器
+
+        Returns:
+            操作结果，包含 status="stopped"
+        """
+        return self._request("POST", "/api/v1/flywheel/schedule", json={"action": "stop"})
+
+    def generate_deep_report(self, date_str: str | None = None) -> dict[str, Any] | None:
+        """生成深度报告
+
+        Args:
+            date_str: 日期字符串 (YYYY-MM-DD)，默认为今天
+
+        Returns:
+            生成的报告数据
+        """
+        params: dict[str, str] = {}
+        if date_str:
+            params["date"] = date_str
+
+        return self._request("POST", "/api/v1/reports/generate-deep", params=params)
