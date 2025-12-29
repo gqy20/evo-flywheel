@@ -108,3 +108,66 @@ def find_similar_papers(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"查找失败: {e!s}")
+
+
+@router.get("/hybrid")
+def hybrid_search(
+    q: str = Query(..., min_length=1, description="搜索查询"),
+    taxa: str | None = Query(None, description="物种过滤"),
+    min_score: int | None = Query(None, ge=0, le=100, description="最低重要性评分"),
+    limit: int = Query(10, ge=1, le=50, description="返回结果数"),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """混合搜索（语义+元数据过滤）
+
+    结合语义相似度与元数据过滤（物种、重要性评分）
+    """
+    try:
+        # 生成查询向量
+        query_vector = generate_embedding(q)
+
+        # 查询 Chroma（获取更多结果以便过滤）
+        client = get_chroma_client()
+        collection = client.get_or_create_collection("evolutionary_papers")
+
+        # 获取更多候选结果用于后续过滤
+        candidates = limit * 3
+        results = collection.query(
+            query_embeddings=[query_vector],
+            n_results=candidates,
+        )
+
+        # 从数据库获取论文并应用元数据过滤
+        filtered_papers = []
+        paper_ids = results["ids"][0] if results["ids"] else []
+
+        for i, paper_id in enumerate(paper_ids):
+            paper = db.query(Paper).filter(Paper.id == int(paper_id)).first()
+            if not paper:
+                continue
+
+            # 应用元数据过滤
+            if taxa and paper.taxa != taxa:
+                continue
+            if min_score is not None and (paper.importance_score or 0) < min_score:
+                continue
+
+            filtered_papers.append(
+                {
+                    "id": paper.id,
+                    "title": paper.title,
+                    "abstract": paper.abstract,
+                    "taxa": paper.taxa,
+                    "importance_score": paper.importance_score,
+                    "similarity": 1 - results["distances"][0][i],
+                }
+            )
+
+            # 达到限制数量
+            if len(filtered_papers) >= limit:
+                break
+
+        return {"results": filtered_papers}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"搜索失败: {e!s}")
