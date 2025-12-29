@@ -11,6 +11,54 @@ from evo_flywheel.web.api_client import APIClient
 logger = get_logger(__name__)
 
 
+def trigger_analysis(limit: int = 10) -> bool:
+    """触发论文分析
+
+    Args:
+        limit: 分析论文数量限制
+
+    Returns:
+        bool: 是否成功
+    """
+    try:
+        client = APIClient()
+        result = client.trigger_analysis(limit=limit)
+
+        if result is None:
+            logger.error("触发分析失败")
+            return False
+
+        return True
+
+    except Exception as e:
+        logger.error(f"触发分析失败: {e}")
+        return False
+
+
+def rebuild_embeddings(force: bool = False) -> bool:
+    """重建向量索引
+
+    Args:
+        force: 是否强制重建所有论文的向量
+
+    Returns:
+        bool: 是否成功
+    """
+    try:
+        client = APIClient()
+        result = client.rebuild_embeddings(force=force)
+
+        if result is None:
+            logger.error("重建索引失败")
+            return False
+
+        return True
+
+    except Exception as e:
+        logger.error(f"重建索引失败: {e}")
+        return False
+
+
 def render_stats_section() -> None:
     """渲染统计数据区域"""
     st.subheader("📊 统计数据")
@@ -115,6 +163,66 @@ def render_daily_report_section() -> None:
         st.warning("今日报告加载失败")
 
 
+def render_admin_panel() -> None:
+    """渲染管理面板区域"""
+    st.subheader("🔧 系统管理")
+
+    with st.expander("管理操作", expanded=False):
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.markdown("#### AI 分析")
+            limit = st.slider(
+                "分析数量",
+                min_value=1,
+                max_value=50,
+                value=10,
+                step=5,
+                help="批量分析未分析的论文数量",
+                key="admin_analysis_limit",
+            )
+
+            if st.button("🚀 触发分析", key="admin_trigger_analysis", type="secondary"):
+                with st.spinner("正在分析中..."):
+                    if trigger_analysis(limit=limit):
+                        st.success(f"✅ 成功触发分析，最多处理 {limit} 篇论文")
+                        st.balloons()
+                    else:
+                        st.error("❌ 分析触发失败，请稍后重试")
+
+            st.caption("💡 定时调度器会自动处理，仅在需要时手动触发")
+
+        with col2:
+            st.markdown("#### 向量索引")
+            force = st.checkbox(
+                "强制重建全部",
+                value=False,
+                help="是否强制重建所有论文的向量（较慢）",
+                key="admin_rebuild_force",
+            )
+
+            if st.button("🔄 重建索引", key="admin_rebuild_embeddings", type="secondary"):
+                with st.spinner("正在重建索引..."):
+                    if rebuild_embeddings(force=force):
+                        mode = "强制" if force else "增量"
+                        st.success(f"✅ 成功触发{mode}重建索引")
+                        st.balloons()
+                    else:
+                        st.error("❌ 索引进建失败，请稍后重试")
+
+            st.caption("💡 仅在向量数据库损坏或需要完全重建时使用")
+
+        st.markdown("---")
+        st.info(
+            """
+            **管理提示**:
+            - 这些操作通常由定时调度器自动完成
+            - 手动触发适用于系统维护或故障恢复
+            - 分析和向量化可能需要几分钟时间
+            """
+        )
+
+
 def render() -> None:
     """渲染首页"""
     st.title("🧬 Evo-Flywheel - 进化生物学学术飞轮")
@@ -132,6 +240,11 @@ def render() -> None:
 
     # 今日报告
     render_daily_report_section()
+
+    st.markdown("---")
+
+    # 管理面板
+    render_admin_panel()
 
     # 页脚
     st.markdown("---")
