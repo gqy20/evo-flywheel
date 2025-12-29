@@ -3,6 +3,7 @@
 展示今日报告、统计数据和推荐论文
 """
 
+import time
 from typing import Any
 
 import streamlit as st
@@ -24,6 +25,20 @@ def get_analysis_status() -> dict[str, Any] | None:
         return client.get_analysis_status()
     except Exception as e:
         logger.error(f"获取分析状态失败: {e}")
+        return None
+
+
+def get_embeddings_status() -> dict[str, Any] | None:
+    """获取索引进度
+
+    Returns:
+        索引状态字典，失败返回 None
+    """
+    try:
+        client = APIClient()
+        return client.get_embeddings_status()
+    except Exception as e:
+        logger.error(f"获取索引进度失败: {e}")
         return None
 
 
@@ -259,14 +274,60 @@ def render_admin_panel() -> None:
                     type="secondary",
                     use_container_width=True,
                 ):
-                    with st.spinner("正在分析中..."):
-                        if trigger_analysis(limit=limit):
-                            if limit is None:
-                                st.success("✅ 成功触发全部分析")
+                    # 使用 st.status 显示实时进度
+                    with st.status("正在分析...", expanded=True) as status:
+                        # 获取初始状态
+                        initial_status = get_analysis_status()
+                        initial_unanalyzed = (
+                            initial_status.get("unanalyzed", 0) if initial_status else 0
+                        )
+
+                        # 触发分析
+                        result = trigger_analysis(limit=limit)
+                        if result:
+                            status.update(label="分析进行中...", state="running")
+
+                            # 轮询进度
+                            max_wait = 60  # 最多等待 60 秒
+                            start_time = time.time()
+                            last_unanalyzed = initial_unanalyzed
+
+                            while time.time() - start_time < max_wait:
+                                current_status = get_analysis_status()
+                                if current_status:
+                                    current_unanalyzed = current_status.get("unanalyzed", 0)
+                                    total = current_status.get("total", 0)
+                                    analyzed = current_status.get("analyzed", 0)
+                                    progress = current_status.get("progress", 0)
+
+                                    # 显示进度
+                                    status.write(f"📊 已分析: {analyzed}/{total} ({progress:.1f}%)")
+                                    status.progress(progress / 100, f"分析进度: {progress:.1f}%")
+
+                                    # 检查是否完成
+                                    if current_unanalyzed == 0:
+                                        status.update(
+                                            label="✅ 分析完成！",
+                                            state="complete",
+                                            expanded=False,
+                                        )
+                                        st.balloons()
+                                        break
+                                    # 检查是否有进展
+                                    if current_unanalyzed < last_unanalyzed:
+                                        last_unanalyzed = current_unanalyzed
+
+                                time.sleep(2)  # 每 2 秒轮询一次
                             else:
-                                st.success(f"✅ 成功触发分析，最多处理 {limit} 篇论文")
-                            st.balloons()
+                                # 超时，但已触发
+                                status.update(
+                                    label="⏳ 分析已触发（后台运行中）",
+                                    state="running",
+                                    expanded=False,
+                                )
+                                st.info("💡 分析正在后台进行，请稍后刷新状态查看结果")
                         else:
+                            status.update(label="❌ 分析触发失败", state="error")
                             st.error("❌ 分析触发失败，请稍后重试")
 
             with col_btn2:
@@ -279,17 +340,16 @@ def render_admin_panel() -> None:
             st.markdown("#### 🔍 向量索引")
 
             # 显示索引进度
-            status = get_analysis_status()
-            if status:
-                # 使用 embedding_rate 作为索引进度
-                total = status.get("total", 0)
-                analyzed = status.get("analyzed", 0)
-                # 简单估算：已向量化 ≈ 已分析
-                embedded = analyzed  # API 没有单独的 embedded 统计
+            embed_status = get_embeddings_status()
+            if embed_status:
+                total = embed_status.get("total", 0)
+                embedded = embed_status.get("embedded", 0)
+                unembedded = embed_status.get("unembedded", 0)
+                progress = embed_status.get("progress", 0)
+
                 if total > 0:
-                    embed_progress = (embedded / total) * 100
-                    st.progress(embed_progress / 100, text=f"索引进度: {embed_progress:.1f}%")
-                    st.caption(f"已向量化: {embedded}/{total}")
+                    st.progress(progress / 100, text=f"索引进度: {progress:.1f}%")
+                    st.caption(f"已向量化: {embedded}/{total} (待处理: {unembedded})")
 
             st.markdown("**索引操作**")
 
@@ -301,11 +361,59 @@ def render_admin_panel() -> None:
                     type="secondary",
                     use_container_width=True,
                 ):
-                    with st.spinner("正在继续索引..."):
-                        if rebuild_embeddings(force=False):
-                            st.success("✅ 成功触发增量索引")
-                            st.balloons()
+                    with st.status("正在索引...", expanded=True) as status:
+                        # 获取初始状态
+                        initial_status = get_embeddings_status()
+                        initial_unembedded = (
+                            initial_status.get("unembedded", 0) if initial_status else 0
+                        )
+
+                        result = rebuild_embeddings(force=False)
+                        if result:
+                            status.update(label="索引进行中...", state="running")
+
+                            # 轮询进度
+                            max_wait = 60  # 最多等待 60 秒
+                            start_time = time.time()
+                            last_unembedded = initial_unembedded
+
+                            while time.time() - start_time < max_wait:
+                                current_status = get_embeddings_status()
+                                if current_status:
+                                    total = current_status.get("total", 0)
+                                    embedded = current_status.get("embedded", 0)
+                                    unembedded = current_status.get("unembedded", 0)
+                                    progress = current_status.get("progress", 0)
+
+                                    # 显示进度
+                                    status.write(
+                                        f"📊 已向量化: {embedded}/{total} ({progress:.1f}%)"
+                                    )
+                                    status.progress(progress / 100, f"索引进度: {progress:.1f}%")
+
+                                    # 检查是否完成
+                                    if unembedded == 0:
+                                        status.update(
+                                            label="✅ 索引完成！",
+                                            state="complete",
+                                            expanded=False,
+                                        )
+                                        st.balloons()
+                                        break
+                                    # 检查是否有进展
+                                    if unembedded < last_unembedded:
+                                        last_unembedded = unembedded
+
+                                time.sleep(2)
+                            else:
+                                status.update(
+                                    label="⏳ 索引已触发（后台运行中）",
+                                    state="running",
+                                    expanded=False,
+                                )
+                                st.info("💡 索引正在后台进行，请稍后刷新状态查看结果")
                         else:
+                            status.update(label="❌ 索引发起失败", state="error")
                             st.error("❌ 索引发起失败，请稍后重试")
 
             with col_btn4:
@@ -321,11 +429,18 @@ def render_admin_panel() -> None:
                     )
                     and force_confirmed
                 ):
-                    with st.spinner("正在重建索引..."):
-                        if rebuild_embeddings(force=True):
-                            st.success("✅ 成功触发强制重建索引")
+                    with st.status("正在重建索引...", expanded=True) as status:
+                        result = rebuild_embeddings(force=True)
+                        if result:
+                            status.update(
+                                label="⏳ 强制重建已触发（后台运行中）",
+                                state="running",
+                                expanded=False,
+                            )
+                            st.info("💡 强制重建正在后台进行，可能需要较长时间")
                             st.balloons()
                         else:
+                            status.update(label="❌ 索引进建失败", state="error")
                             st.error("❌ 索引进建失败，请稍后重试")
 
             st.caption("💡 继续索引仅处理未向量化的论文，强制重建会重新处理全部")
@@ -337,7 +452,7 @@ def render_admin_panel() -> None:
             - 这些操作通常由定时调度器自动完成
             - 手动触发适用于系统维护或故障恢复
             - 分析和向量化可能需要几分钟时间
-            - 使用"刷新状态"按钮查看最新进度
+            - 进度会实时更新，完成后自动刷新
             """
         )
 

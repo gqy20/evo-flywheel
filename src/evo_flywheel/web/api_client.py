@@ -343,3 +343,11 @@ class APIClient:
         """
         params: dict[str, bool] = {"force": force}
         return self._request("POST", "/api/v1/embeddings/rebuild", params=params)
+
+    def get_embeddings_status(self) -> dict[str, Any] | None:
+        """获取向量索引状态
+
+        Returns:
+            索引状态数据，失败返回 None
+        """
+        return self._request("GET", "/api/v1/embeddings/status")

@@ -1,5 +1,7 @@
 """向量嵌入相关 API 端点"""
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -59,7 +61,7 @@ def rebuild_embeddings(
                 continue
 
             try:
-                embedding = generate_embedding(paper.abstract)
+                embedding = generate_embedding(paper.abstract)  # type: ignore[arg-type]
                 ids.append(str(paper.id))
                 embeddings.append(embedding)
                 metadatas.append(
@@ -73,7 +75,7 @@ def rebuild_embeddings(
                 )
 
                 # 标记为已向量化
-                paper.embedded = True
+                paper.embedded = True  # type: ignore[assignment]
 
             except Exception as e:
                 # 单个论文失败不影响整体，记录日志
@@ -82,7 +84,7 @@ def rebuild_embeddings(
 
         # 批量添加到 Chroma
         if embeddings:
-            collection.add(ids=ids, embeddings=embeddings, metadatas=metadatas)
+            collection.add(ids=ids, embeddings=embeddings, metadatas=metadatas)  # type: ignore[arg-type]
 
         db.commit()
 
@@ -96,3 +98,26 @@ def rebuild_embeddings(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"重建向量索引失败: {e!s}")
+
+
+@router.get("/status")
+def get_embeddings_status(db: Session = Depends(get_db)) -> dict[str, Any]:
+    """获取向量索引状态
+
+    返回论文向量化统计信息
+    """
+    # 统计未向量化的论文
+    unembedded = (
+        db.query(Paper).filter(Paper.embedded.is_(False)).filter(Paper.abstract.isnot(None)).count()
+    )
+    total_with_abstract = db.query(Paper).filter(Paper.abstract.isnot(None)).count()
+    embedded = total_with_abstract - unembedded
+
+    return {
+        "total": total_with_abstract,
+        "embedded": embedded,
+        "unembedded": unembedded,
+        "progress": round(embedded / total_with_abstract * 100, 2)
+        if total_with_abstract > 0
+        else 0,
+    }
