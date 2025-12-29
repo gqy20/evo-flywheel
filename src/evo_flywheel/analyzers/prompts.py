@@ -3,6 +3,8 @@
 定义进化生物学论文分析的 Prompt 结构
 """
 
+from typing import Any
+
 # 进化尺度选项
 EVOLUTIONARY_SCALES = ["分子", "个体", "种群", "物种"]
 
@@ -131,6 +133,90 @@ def build_analysis_prompt(title: str, abstract: str) -> str:
 3. key_findings 必须是数组，包含 3-5 个字符串
 4. importance_score 必须是 0-100 之间的整数
 5. 数组最后一个元素后面**不要加逗号**
+"""
+
+    return prompt
+
+
+def build_report_prompt(
+    papers: list[dict[str, Any]],
+    clusters: dict[str, list[dict]],
+    stats: dict[str, Any],
+) -> str:
+    """构建深度报告生成的 LLM Prompt
+
+    Args:
+        papers: 论文列表
+        clusters: 按主题分组的论文
+        stats: 统计信息
+
+    Returns:
+        str: LLM prompt
+    """
+    # 构建论文摘要（限制数量避免超token）
+    paper_summaries = []
+    for p in papers[:50]:
+        findings_text = "; ".join(p.get("key_findings", [])[:3])
+        paper_summaries.append(f"""
+- 【{p.get("importance_score", 0)}分】{p.get("title", "")}
+  物种: {p.get("taxa", "Unknown")} | 尺度: {p.get("evolutionary_scale", "Unknown")} | 方法: {p.get("research_method", "Unknown")}
+  机制: {p.get("evolutionary_mechanism", "Unknown")}
+  关键发现: {findings_text}
+  创新性: {p.get("innovation_summary", "")}
+""")
+
+    # 构建聚类信息
+    cluster_info = []
+    for topic, cluster_papers in clusters.items():
+        cluster_info.append(f"""
+【{topic.replace("_", "/")}】({len(cluster_papers)}篇)
+  代表论文: {cluster_papers[0].get("title", "")[:50]}...
+""")
+
+    prompt = f"""你是一位资深的进化生物学研究专家，请基于以下今天采集的论文数据，生成一份深度分析报告。
+
+## 日期
+{stats.get("date", "")}
+
+## 统计概览
+- 总论文数: {stats.get("total", 0)}
+- 高价值论文(≥80分): {stats.get("high_value", 0)}
+- 涉及物种数: {stats.get("taxa_count", 0)}
+- 涉及方法数: {stats.get("methods_count", 0)}
+
+## 论文数据
+{"".join(paper_summaries)}
+
+## 主题聚类
+{"".join(cluster_info)}
+
+## 请生成以下内容（以 JSON 格式返回）：
+
+{{
+  "research_summary": "用3-5句话概括今天的研究亮点，突出突破性进展和值得关注的趋势",
+
+  "hot_topics": [
+    {{"topic": "热点名称", "description": "为什么成为热点，涉及哪些突破", "paper_count": 5, "key_papers": [1, 2, 3]}}
+  ],
+
+  "trend_analysis": {{
+    "emerging_taxa": "新兴研究对象（如果今天出现新的物种研究）",
+    "methodology_trends": "方法学发展趋势（如单细胞测序应用的扩展）",
+    "cross_disciplinary_insights": "跨学科洞察（如与AI、物理的结合）"
+  }},
+
+  "recommended_papers": [
+    {{"paper_id": 1, "title": "论文标题", "reason": "推荐理由：为什么这篇论文特别值得读（1-2句话）", "priority": "must_read"}}
+  ],
+
+  "forward_look": "基于今天的研究，预测未来1-2个月可能出现的方向（2-3句话）"
+}}
+
+**重要提示**：
+1. 只返回 JSON，不要包含其他文字
+2. hot_topics 识别3-5个热点
+3. recommended_papers 包含5-10篇，priority 分为 must_read/highly_recommended/interesting
+4. 趋势分析要有洞察力，不是简单的数据罗列
 """
 
     return prompt

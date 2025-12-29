@@ -7,7 +7,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from evo_flywheel.db.models import CollectionLog, DailyReport, Feedback, Paper
+from evo_flywheel.db.models import CollectionLog, DailyReport, Feedback, Paper, PaperCluster
 from evo_flywheel.logging import get_logger
 
 logger = get_logger(__name__)
@@ -419,5 +419,68 @@ def get_collection_logs(
         .order_by(CollectionLog.created_at.desc())
         .offset(skip)
         .limit(limit)
+        .all()
+    )
+
+
+# ============================================================================
+# PaperCluster CRUD
+# ============================================================================
+
+
+def create_paper_cluster(
+    db: Session,
+    *,
+    report_id: int,
+    cluster_name: str,
+    paper_ids: list[int],
+    cluster_summary: str | None = None,
+    key_findings: list[str] | None = None,
+) -> PaperCluster:
+    """创建论文聚类
+
+    Args:
+        db: 数据库会话
+        report_id: 关联的报告ID
+        cluster_name: 聚类名称
+        paper_ids: 论文ID列表
+        cluster_summary: 聚类摘要
+        key_findings: 关键发现列表
+
+    Returns:
+        PaperCluster: 创建的聚类对象
+    """
+    cluster = PaperCluster(
+        report_id=report_id,
+        cluster_name=cluster_name,
+        cluster_summary=cluster_summary,
+    )
+
+    # 设置列表属性
+    cluster.paper_ids_list = paper_ids
+    if key_findings:
+        cluster.findings_list = key_findings
+
+    db.add(cluster)
+    db.commit()
+    db.refresh(cluster)
+
+    return cluster
+
+
+def get_clusters_by_report(db: Session, report_id: int) -> list[PaperCluster]:
+    """获取报告的所有聚类
+
+    Args:
+        db: 数据库会话
+        report_id: 报告ID
+
+    Returns:
+        list[PaperCluster]: 聚类列表
+    """
+    return (
+        db.query(PaperCluster)
+        .filter(PaperCluster.report_id == report_id)
+        .order_by(PaperCluster.id)
         .all()
     )
