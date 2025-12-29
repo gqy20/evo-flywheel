@@ -159,3 +159,20 @@ class RSSSource(Base):
 
     def __repr__(self) -> str:
         return f"<RSSSource(id={self.id}, name='{self.name}', enabled={self.enabled})>"
+
+
+class CollectionLog(Base):
+    """数据采集日志表"""
+
+    __tablename__ = "collection_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    status = Column(Text, nullable=False)  # 'running', 'success', 'failed'
+    total_papers = Column(Integer, default=0)
+    new_papers = Column(Integer, default=0)
+    sources = Column(Text)  # 逗号分隔的数据源列表
+    error_message = Column(Text)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+
+    def __repr__(self) -> str:
+        return f"<CollectionLog(id={self.id}, status='{self.status}', total={self.total_papers})>"

@@ -1,6 +1,7 @@
 """数据采集相关 API 端点"""
 
 from datetime import datetime, timedelta
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -76,14 +77,41 @@ def trigger_fetch(
 
 
 @router.get("/status")
-def get_collection_status() -> dict:
+def get_collection_status(db: Session = Depends(get_db)) -> dict[str, Any]:
     """获取采集状态
 
     返回当前系统采集状态和最近采集时间
     """
-    # TODO: 实现实际的采集状态查询 (需要 CollectionLog 模型)
-    return {
-        "status": "idle",
+    from evo_flywheel.db import crud
+
+    # 获取最新的采集日志
+    latest_log = crud.get_latest_collection_log(db)
+
+    # 确定当前状态
+    if latest_log and latest_log.status == "running":
+        current_status = "running"
+    elif latest_log and latest_log.status == "failed":
+        current_status = "failed"
+    elif latest_log and latest_log.status == "success":
+        current_status = "idle"
+    else:
+        current_status = "idle"
+
+    # 构建返回数据
+    result: dict[str, Any] = {
+        "status": current_status,
         "last_collection": None,
-        "total_sources": 8,
+        "total_sources": 8,  # 固定值，后续可以从 RSSSource 表获取
     }
+
+    if latest_log:
+        result["last_collection"] = {
+            "status": latest_log.status,
+            "total_papers": latest_log.total_papers,
+            "new_papers": latest_log.new_papers,
+            "sources": latest_log.sources,
+            "error_message": latest_log.error_message,
+            "created_at": latest_log.created_at.isoformat() if latest_log.created_at else None,
+        }
+
+    return result

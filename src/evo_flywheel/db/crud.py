@@ -7,7 +7,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from evo_flywheel.db.models import DailyReport, Feedback, Paper
+from evo_flywheel.db.models import CollectionLog, DailyReport, Feedback, Paper
 from evo_flywheel.logging import get_logger
 
 logger = get_logger(__name__)
@@ -340,5 +340,84 @@ def get_feedbacks_by_paper(db: Session, paper_id: int) -> list[Feedback]:
         db.query(Feedback)
         .filter(Feedback.paper_id == paper_id)
         .order_by(Feedback.created_at.desc())
+        .all()
+    )
+
+
+# ============================================================================
+# CollectionLog CRUD
+# ============================================================================
+
+
+def create_collection_log(
+    db: Session,
+    *,
+    status: str,
+    total_papers: int = 0,
+    new_papers: int = 0,
+    sources: str | None = None,
+    error_message: str | None = None,
+) -> CollectionLog:
+    """创建采集日志
+
+    Args:
+        db: 数据库会话
+        status: 采集状态 (running, success, failed)
+        total_papers: 总论文数
+        new_papers: 新增论文数
+        sources: 数据源列表（逗号分隔）
+        error_message: 错误信息
+
+    Returns:
+        CollectionLog: 创建的采集日志对象
+    """
+    log = CollectionLog(
+        status=status,
+        total_papers=total_papers,
+        new_papers=new_papers,
+        sources=sources,
+        error_message=error_message,
+    )
+
+    db.add(log)
+    db.commit()
+    db.refresh(log)
+
+    return log
+
+
+def get_latest_collection_log(db: Session) -> CollectionLog | None:
+    """获取最新的采集日志
+
+    Args:
+        db: 数据库会话
+
+    Returns:
+        CollectionLog | None: 最新的采集日志对象
+    """
+    return db.query(CollectionLog).order_by(CollectionLog.created_at.desc()).first()
+
+
+def get_collection_logs(
+    db: Session,
+    *,
+    skip: int = 0,
+    limit: int = 50,
+) -> list[CollectionLog]:
+    """获取采集日志列表
+
+    Args:
+        db: 数据库会话
+        skip: 跳过数量
+        limit: 返回数量限制
+
+    Returns:
+        list[CollectionLog]: 采集日志列表
+    """
+    return (
+        db.query(CollectionLog)
+        .order_by(CollectionLog.created_at.desc())
+        .offset(skip)
+        .limit(limit)
         .all()
     )
