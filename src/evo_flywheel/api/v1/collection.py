@@ -32,7 +32,10 @@ def trigger_fetch(
         # 加载 RSS 源
         rss_sources = load_rss_sources()
 
-        # TODO: sources 参数用于过滤数据源，这里先忽略，后续实现
+        # 根据 sources 参数过滤数据源
+        if sources:
+            requested_sources = [s.strip() for s in sources.split(",")]
+            rss_sources = [s for s in rss_sources if s.get("name") in requested_sources]
 
         # 执行采集
         papers = collect_from_all_sources(
