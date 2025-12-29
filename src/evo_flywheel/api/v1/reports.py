@@ -92,7 +92,8 @@ def generate_report(
     target_date: date = datetime.strptime(date_str, "%Y-%m-%d").date() if date_str else date.today()
 
     try:
-        report = generate_daily_report(target_date)
+        report = generate_daily_report(target_date, db)
         return report
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=f"生成报告失败: {e!s}")
