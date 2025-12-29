@@ -47,9 +47,7 @@ def trigger_analysis(
                     "abstract": p.abstract,
                     "authors": p.authors,
                     "doi": p.doi,
-                    "publication_date": (
-                        p.publication_date.isoformat() if p.publication_date else None
-                    ),
+                    "publication_date": p.publication_date,  # 已经是字符串
                 }
             )
 
