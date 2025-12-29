@@ -108,7 +108,7 @@ def list_deep_reports(
                 report_date=str(report.report_date),
                 total_papers=int(report.total_papers),
                 high_value_papers=int(report.high_value_papers),
-                top_paper_ids=list(report.top_paper_ids) if report.top_paper_ids else [],
+                top_paper_ids=report.top_papers_list,
                 content=content,
                 created_at=report.created_at.isoformat() if report.created_at else "",
             )
@@ -152,7 +152,7 @@ def get_deep_report_by_id(
         report_date=str(report.report_date),
         total_papers=int(report.total_papers),
         high_value_papers=int(report.high_value_papers),
-        top_paper_ids=list(report.top_paper_ids) if report.top_paper_ids else [],
+        top_paper_ids=report.top_papers_list,
         content=content,
         created_at=report.created_at.isoformat() if report.created_at else "",
     )
@@ -196,7 +196,7 @@ def get_deep_reports_by_date(
                 report_date=str(report.report_date),
                 total_papers=int(report.total_papers),
                 high_value_papers=int(report.high_value_papers),
-                top_paper_ids=list(report.top_paper_ids) if report.top_paper_ids else [],
+                top_paper_ids=report.top_papers_list,
                 content=content,
                 created_at=report.created_at.isoformat() if report.created_at else "",
             )
