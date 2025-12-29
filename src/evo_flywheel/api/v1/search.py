@@ -46,6 +46,8 @@ def semantic_search(
                         "id": paper.id,
                         "title": results["metadatas"][0][i].get("title", paper.title),
                         "abstract": paper.abstract,
+                        "taxa": paper.taxa,
+                        "importance_score": paper.importance_score,
                         "similarity": 1 - results["distances"][0][i],  # 转换为相似度
                     }
                 )
@@ -100,6 +102,8 @@ def find_similar_papers(
                         "id": similar_paper.id,
                         "title": similar_paper.title,
                         "abstract": similar_paper.abstract,
+                        "taxa": similar_paper.taxa,
+                        "importance_score": similar_paper.importance_score,
                         "similarity": 1 - results["distances"][0][i],
                     }
                 )
