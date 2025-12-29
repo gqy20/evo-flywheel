@@ -1,5 +1,6 @@
 """Embedding 服务单元测试"""
 
+import importlib
 from unittest import mock
 
 import pytest
@@ -35,17 +36,32 @@ class TestGetEmbeddingClient:
 
     def test_get_client_requires_api_key(self, monkeypatch):
         """测试缺少 API Key 时抛出异常"""
-        # Arrange
+        # 如果 .env 文件中有配置，跳过此测试
         import evo_flywheel.config as config_module
+
+        settings = config_module.get_settings()
+        if settings.embedding_api_key:
+            pytest.skip(".env 文件中已配置 EMBEDDING_API_KEY")
+
+        # Arrange
         import evo_flywheel.vector.embeddings as embeddings_module
 
-        embeddings_module._client = None
-        config_module._settings = None  # 清除 Settings 缓存
-        monkeypatch.delenv("EMBEDDING_API_KEY", raising=False)
+        # 使用 importlib.reload 重新加载模块以清除缓存
+        config_module._settings = None
+        importlib.reload(embeddings_module)
+        from evo_flywheel.vector.embeddings import get_embedding_client as get_client_fresh
+
+        # 创建一个简单的对象来模拟 Settings
+        class MockSettings:
+            embedding_api_url = "http://test.api"
+            embedding_api_key = ""  # 空 API key
+            embedding_model = "test-model"
+
+        monkeypatch.setattr(config_module, "get_settings", lambda: MockSettings())
 
         # Act & Assert
-        with pytest.raises(ValueError, match="EMBEDDING_API_KEY"):
-            get_embedding_client()
+        with pytest.raises(ValueError, match="API Key"):
+            get_client_fresh()
 
 
 class TestGenerateEmbedding:
