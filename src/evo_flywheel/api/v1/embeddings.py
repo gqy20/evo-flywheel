@@ -38,7 +38,7 @@ def rebuild_embeddings(
     else:
         papers = (
             db.query(Paper)
-            .filter(Paper.embedged.is_(False))
+            .filter(Paper.embedded.is_(False))
             .filter(Paper.abstract.isnot(None))
             .all()
         )
