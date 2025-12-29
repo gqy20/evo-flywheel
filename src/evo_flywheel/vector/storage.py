@@ -245,9 +245,9 @@ def get_papers_without_embeddings() -> list[dict[str, Any]]:
 
     # 创建数据库连接
     engine = create_engine(
-        settings.database_url,
+        settings.effective_database_url,
         connect_args={"check_same_thread": False}
-        if settings.database_url.startswith("sqlite")
+        if settings.effective_database_url.startswith("sqlite")
         else {},
     )
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

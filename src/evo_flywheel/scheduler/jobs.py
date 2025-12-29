@@ -181,7 +181,7 @@ def _save_papers_to_db(papers: list[dict[str, Any]]) -> int:
     from evo_flywheel.db.models import Paper
 
     settings = get_settings()
-    engine = create_engine(settings.database_url)
+    engine = create_engine(settings.effective_database_url)
 
     saved_count = 0
     skipped_count = 0
