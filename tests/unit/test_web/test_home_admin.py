@@ -15,6 +15,15 @@ class TestHomeAdminPanel:
         assert hasattr(home, "render_admin_panel")
         assert callable(home.render_admin_panel)
 
+    def test_home_has_render_analysis_progress_function(self):
+        """测试首页有分析进度渲染函数"""
+        # Arrange & Act
+        from evo_flywheel.web.views import home
+
+        # Assert
+        assert hasattr(home, "render_analysis_progress")
+        assert callable(home.render_analysis_progress)
+
     @mock.patch("evo_flywheel.web.views.home.APIClient")
     def test_trigger_analysis_uses_api_client(self, mock_api_client_class):
         """测试触发分析使用 APIClient"""
@@ -36,22 +45,23 @@ class TestHomeAdminPanel:
         assert result is True
 
     @mock.patch("evo_flywheel.web.views.home.APIClient")
-    def test_trigger_analysis_passes_limit(self, mock_api_client_class):
-        """测试触发分析传递限制参数"""
+    def test_trigger_analysis_supports_unlimited_limit(self, mock_api_client_class):
+        """测试触发分析支持无限制数量"""
         # Arrange
         mock_client = mock.Mock()
-        mock_client.trigger_analysis.return_value = {"analyzed": 5, "total": 5}
+        mock_client.trigger_analysis.return_value = {"analyzed": 100, "total": 100}
         mock_api_client_class.return_value = mock_client
 
         # Act
         from evo_flywheel.web.views.home import trigger_analysis
 
-        trigger_analysis(limit=20)
+        trigger_analysis(limit=None)  # None 表示全部
 
         # Assert
         mock_client.trigger_analysis.assert_called_once()
         call_kwargs = mock_client.trigger_analysis.call_args.kwargs
-        assert call_kwargs.get("limit") == 20
+        # None 应该被转换为一个大数值或从 kwargs 中移除
+        assert "limit" not in call_kwargs or call_kwargs.get("limit") is None
 
     @mock.patch("evo_flywheel.web.views.home.APIClient")
     def test_trigger_analysis_handles_api_error(self, mock_api_client_class):
@@ -123,3 +133,41 @@ class TestHomeAdminPanel:
 
         # Assert
         assert result is False
+
+    @mock.patch("evo_flywheel.web.views.home.APIClient")
+    def test_get_analysis_status_uses_api_client(self, mock_api_client_class):
+        """测试获取分析状态使用 APIClient"""
+        # Arrange
+        mock_client = mock.Mock()
+        mock_client.get_analysis_status.return_value = {
+            "total": 150,
+            "analyzed": 120,
+            "unanalyzed": 30,
+            "progress": 80.0,
+        }
+        mock_api_client_class.return_value = mock_client
+
+        # Act
+        from evo_flywheel.web.views.home import get_analysis_status
+
+        result = get_analysis_status()
+
+        # Assert
+        assert result is not None
+        assert result["unanalyzed"] == 30
+
+    @mock.patch("evo_flywheel.web.views.home.APIClient")
+    def test_get_analysis_status_handles_api_error(self, mock_api_client_class):
+        """测试获取分析状态处理 API 错误"""
+        # Arrange
+        mock_client = mock.Mock()
+        mock_client.get_analysis_status.return_value = None
+        mock_api_client_class.return_value = mock_client
+
+        # Act
+        from evo_flywheel.web.views.home import get_analysis_status
+
+        result = get_analysis_status()
+
+        # Assert
+        assert result is None
