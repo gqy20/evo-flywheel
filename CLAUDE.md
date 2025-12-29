@@ -8,13 +8,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Current Status
 
-**里程碑 1 (v0.1.0 - 基础设施) 已完成** ✅
+**里程碑 1-9 (v0.1.0 - v0.1.8) 已完成** ✅
 - ✅ 项目初始化 (uv + ruff + pre-commit)
 - ✅ 数据库模型 (SQLite + Chroma)
 - ✅ CRUD 操作模块
 - ✅ 单元测试框架
-
-**里程碑 3 (v0.3.0 - 分析与搜索层) 进行中** 🔄
 - ✅ RSS 采集器 (feedparser)
 - ✅ bioRxiv API 采集器
 - ✅ 数据去重模块 (DOI + title)
@@ -25,7 +23,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - ✅ 向量嵌入和语义搜索
 - ✅ FastAPI REST API
 - ✅ Streamlit Web 界面
-- 🔄 里程碑 4 (完善与优化)
+- ✅ 飞轮自动化 (4小时间隔)
+- ✅ 深度报告生成
+
+**当前版本**: v0.1.8
 
 ---
 
@@ -335,25 +336,47 @@ See `docs/ROADMAP.md` for detailed 6-phase development plan (2-3 weeks MVP):
 - 数据库Schema设计 (SQLite + Chroma)
 - 单元测试框架
 
-**v0.2.0 - 数据采集层** ✅
+**v0.1.1 - 数据采集层** ✅
 - RSS feed parser with advanced DOI extraction
 - bioRxiv API client (avoiding Cloudflare)
 - Cross-source deduplication (DOI + title normalization)
 - Multi-source orchestrator with graceful error handling
 - APScheduler with CLI entry points (`evo-fetch`, `evo-init`)
 
-**v0.3.0 - 分析与搜索层** ✅
+**v0.1.2 - LLM 分析层** ✅
 - LLM paper analysis (GLM-4.7 via OpenAI-compatible API)
+- Structured prompts for evolutionary biology insights
+- Batch analysis with progress tracking
+
+**v0.1.3 - 搜索层** ✅
 - Vector embeddings (remote API)
 - Semantic search with Chroma
 - Hybrid search (metadata filters + semantic ranking)
-- FastAPI REST API with comprehensive endpoints
-- Streamlit web interface with multiple views
 
-**v0.4.0 - 完善与优化** 🔄
+**v0.1.4 - Web 界面** ✅
+- Streamlit web interface with multiple views
+- Home page with statistics and recommendations
+- Paper list, search, and detail views
+
+**v0.1.5 - 测试优化与部署** ✅
 - Enhanced testing coverage
 - Performance optimization
 - Bug fixes and refinements
+
+**v0.1.6 - FastAPI 后端** ✅
+- REST API with comprehensive endpoints
+- OpenAPI documentation (Swagger/ReDoc)
+- Unified error handling
+
+**v0.1.7 - Web UI 后端集成** ✅
+- APIClient for backend communication
+- Paper detail page with feedback
+- Integrated search and reporting
+
+**v0.1.8 - 飞轮控制** ✅
+- Automated flywheel (4-hour interval)
+- Deep report generation with LLM
+- Multiple reports per day support
 
 ---
 

@@ -4,7 +4,7 @@ Evo-Flywheel REST API for evolutionary biology literature analysis.
 
 **Base URL**: `http://localhost:8000`
 
-**API Version**: v0.9.0
+**API Version**: v0.1.8
 
 **Interactive Documentation**:
 - Swagger UI: `http://localhost:8000/api/v1/docs`

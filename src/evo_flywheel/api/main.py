@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Evo-Flywheel API",
     description="进化生物学学术文献分析系统",
-    version="0.7.0",
+    version="0.1.8",
     docs_url="/api/v1/docs",
     redoc_url="/api/v1/redoc",
     lifespan=lifespan,
