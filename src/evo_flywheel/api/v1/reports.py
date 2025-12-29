@@ -1,6 +1,6 @@
 """报告相关 API 端点"""
 
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -18,11 +18,12 @@ def get_today_report(db: Session = Depends(get_db)) -> dict:
     返回今天采集的论文统计和重点推荐
     """
     today = date.today()
+    tomorrow = today + timedelta(days=1)
 
     # 获取今天的论文
     papers = (
         db.query(Paper)
-        .filter(Paper.created_at >= today)
+        .filter(Paper.created_at >= today, Paper.created_at < tomorrow)
         .order_by(Paper.importance_score.desc())
         .limit(20)
         .all()
@@ -50,9 +51,10 @@ def get_report_by_date(
     db: Session = Depends(get_db),
 ) -> dict:
     """获取指定日期的报告"""
+    next_day = report_date + timedelta(days=1)
     papers = (
         db.query(Paper)
-        .filter(Paper.created_at >= report_date, Paper.created_at < report_date)
+        .filter(Paper.created_at >= report_date, Paper.created_at < next_day)
         .order_by(Paper.importance_score.desc())
         .limit(20)
         .all()
