@@ -53,32 +53,43 @@ class TestGetDbSession:
     def test_get_db_session_commit_on_success(self):
         """测试成功时自动提交"""
         # Arrange
+        import time
+
         from evo_flywheel.db.models import Paper
+
+        unique_doi = f"10.1234/test-commit-{int(time.time())}"
 
         # Act
         with get_db_session() as session:
             paper = Paper(
                 title="Test Paper",
-                doi="10.1234/test",
+                doi=unique_doi,
                 abstract="Test abstract",
             )
             session.add(paper)
             # 上下文退出时应自动 commit
 
-        # Assert - 验证不会抛出异常
-        # 注意：由于可能使用临时数据库，这里主要验证不抛异常
+        # Assert - 验证数据已提交
+        with get_db_session() as session:
+            saved = session.query(Paper).filter(Paper.doi == unique_doi).first()
+            assert saved is not None
+            assert saved.title == "Test Paper"
 
     def test_get_db_session_rollback_on_error(self):
         """测试异常时自动回滚"""
         # Arrange
+        import time
+
         from evo_flywheel.db.models import Paper
+
+        unique_doi = f"10.1234/test-rollback-{int(time.time())}"
 
         # Act & Assert
         try:
             with get_db_session() as session:
                 paper = Paper(
                     title="Test Paper",
-                    doi="10.1234/test-rollback",
+                    doi=unique_doi,
                     abstract="Test abstract",
                 )
                 session.add(paper)
@@ -90,5 +101,7 @@ class TestGetDbSession:
         except ValueError:
             pass
 
-        # Assert - 验证不会抛出异常
-        # 注意：由于可能使用临时数据库，这里主要验证不抛异常
+        # Assert - 验证数据已回滚，不存在于数据库中
+        with get_db_session() as session:
+            rolled_back = session.query(Paper).filter(Paper.doi == unique_doi).first()
+            assert rolled_back is None
