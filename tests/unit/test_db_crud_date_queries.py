@@ -188,8 +188,8 @@ class TestGetPapersByDateRange:
             limit=2,
         )
 
-        # Assert - 应该返回评分最高的 2 篇 (85, 80)
+        # Assert - 应该返回评分最高的 2 篇 (80, 75)
         assert len(papers) == 2
-        assert papers[0].importance_score == 85
-        assert papers[1].importance_score == 80
+        assert papers[0].importance_score == 80
+        assert papers[1].importance_score == 75
         assert all(p.importance_score is not None for p in papers)

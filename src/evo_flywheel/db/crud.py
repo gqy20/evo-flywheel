@@ -3,6 +3,7 @@
 提供论文、报告、反馈的增删改查操作
 """
 
+from datetime import date, timedelta
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -216,6 +217,47 @@ def delete_paper(db: Session, paper_id: int) -> bool:
     db.commit()
 
     return True
+
+
+def get_papers_by_date_range(
+    db: Session,
+    start_date: date,
+    end_date: date | None = None,
+    only_analyzed: bool = False,
+    limit: int | None = None,
+    order_by_score: bool = True,
+) -> list[Paper]:
+    """按日期范围查询论文
+
+    Args:
+        db: 数据库会话
+        start_date: 开始日期（包含）
+        end_date: 结束日期（不包含），默认为 start_date + 1 天
+        only_analyzed: 是否只返回已分析的论文
+        limit: 限制返回数量
+        order_by_score: 是否按重要性评分排序
+
+    Returns:
+        论文列表
+    """
+    if end_date is None:
+        end_date = start_date + timedelta(days=1)
+
+    query = db.query(Paper).filter(
+        Paper.created_at >= start_date,
+        Paper.created_at < end_date,
+    )
+
+    if only_analyzed:
+        query = query.filter(Paper.importance_score.isnot(None))
+
+    if order_by_score:
+        query = query.order_by(Paper.importance_score.desc())
+
+    if limit:
+        query = query.limit(limit)
+
+    return query.all()
 
 
 # ============================================================================
