@@ -8,6 +8,9 @@ from sqlalchemy.pool import StaticPool
 
 from evo_flywheel.db.models import Base
 
+# 导入 paper_factory fixture
+from tests.factories.paper_factory import paper_factory  # noqa: F401
+
 # 使用内存数据库进行测试
 TEST_DATABASE_URL = "sqlite:///:memory:"
 

@@ -1,11 +1,25 @@
 """FastAPI 主应用模块"""
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from evo_flywheel.api.v1 import papers
 from evo_flywheel.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期管理"""
+    # 启动
+    logger.info("FastAPI 应用启动")
+    yield
+    # 关闭
+    logger.info("FastAPI 应用关闭")
+
 
 app = FastAPI(
     title="Evo-Flywheel API",
@@ -13,6 +27,7 @@ app = FastAPI(
     version="0.7.0",
     docs_url="/api/v1/docs",
     redoc_url="/api/v1/redoc",
+    lifespan=lifespan,
 )
 
 # CORS 支持
@@ -23,6 +38,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 注册 v1 路由
+app.include_router(papers.router, prefix="/api/v1/papers", tags=["papers"])
 
 
 @app.get("/")
@@ -35,15 +53,3 @@ async def root():
 async def health_check():
     """健康检查端点"""
     return {"status": "healthy"}
-
-
-@app.on_event("startup")
-async def startup_event():
-    """应用启动事件"""
-    logger.info("FastAPI 应用启动")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """应用关闭事件"""
-    logger.info("FastAPI 应用关闭")
