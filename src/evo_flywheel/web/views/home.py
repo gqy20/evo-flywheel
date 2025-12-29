@@ -291,6 +291,7 @@ def render_admin_panel() -> None:
                             max_wait = 60  # 最多等待 60 秒
                             start_time = time.time()
                             last_unanalyzed = initial_unanalyzed
+                            placeholder = st.empty()
 
                             while time.time() - start_time < max_wait:
                                 current_status = get_analysis_status()
@@ -300,9 +301,12 @@ def render_admin_panel() -> None:
                                     analyzed = current_status.get("analyzed", 0)
                                     progress = current_status.get("progress", 0)
 
-                                    # 显示进度
-                                    status.write(f"📊 已分析: {analyzed}/{total} ({progress:.1f}%)")
-                                    status.progress(progress / 100, f"分析进度: {progress:.1f}%")
+                                    # 使用占位符显示进度（会替换之前的内容）
+                                    with placeholder.container():
+                                        st.metric(
+                                            "已分析", f"{analyzed}/{total}", f"{progress:.1f}%"
+                                        )
+                                        st.progress(progress / 100)
 
                                     # 检查是否完成
                                     if current_unanalyzed == 0:
@@ -311,6 +315,7 @@ def render_admin_panel() -> None:
                                             state="complete",
                                             expanded=False,
                                         )
+                                        placeholder.empty()
                                         st.balloons()
                                         break
                                     # 检查是否有进展
@@ -320,6 +325,7 @@ def render_admin_panel() -> None:
                                 time.sleep(2)  # 每 2 秒轮询一次
                             else:
                                 # 超时，但已触发
+                                placeholder.empty()
                                 status.update(
                                     label="⏳ 分析已触发（后台运行中）",
                                     state="running",
@@ -376,6 +382,7 @@ def render_admin_panel() -> None:
                             max_wait = 60  # 最多等待 60 秒
                             start_time = time.time()
                             last_unembedded = initial_unembedded
+                            placeholder = st.empty()
 
                             while time.time() - start_time < max_wait:
                                 current_status = get_embeddings_status()
@@ -385,11 +392,12 @@ def render_admin_panel() -> None:
                                     unembedded = current_status.get("unembedded", 0)
                                     progress = current_status.get("progress", 0)
 
-                                    # 显示进度
-                                    status.write(
-                                        f"📊 已向量化: {embedded}/{total} ({progress:.1f}%)"
-                                    )
-                                    status.progress(progress / 100, f"索引进度: {progress:.1f}%")
+                                    # 使用占位符显示进度（会替换之前的内容）
+                                    with placeholder.container():
+                                        st.metric(
+                                            "已向量化", f"{embedded}/{total}", f"{progress:.1f}%"
+                                        )
+                                        st.progress(progress / 100)
 
                                     # 检查是否完成
                                     if unembedded == 0:
@@ -398,6 +406,7 @@ def render_admin_panel() -> None:
                                             state="complete",
                                             expanded=False,
                                         )
+                                        placeholder.empty()
                                         st.balloons()
                                         break
                                     # 检查是否有进展
@@ -406,6 +415,7 @@ def render_admin_panel() -> None:
 
                                 time.sleep(2)
                             else:
+                                placeholder.empty()
                                 status.update(
                                     label="⏳ 索引已触发（后台运行中）",
                                     state="running",
