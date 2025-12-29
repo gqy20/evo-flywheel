@@ -89,6 +89,11 @@ evo-fetch                   # 执行一次采集 (默认最近7天)
 evo-fetch --days 3          # 采集最近3天的论文
 evo-fetch --schedule        # 启动定时调度器
 evo-fetch --sources arxiv   # 只采集指定源
+
+# AI 分析和向量化
+evo-analyze                 # 分析未分析的论文
+evo-analyze --max 50        # 最多分析 50 篇
+evo-analyze --embed-only    # 只生成向量，不进行 AI 分析
 ```
 
 ## 项目结构 (src layout)
@@ -116,7 +121,8 @@ evo-flywheel/
 │       │   ├── dedup.py       # Deduplication logic
 │       │   └── orchestrator.py # Multi-source coordinator
 │       ├── scheduler/        # APScheduler tasks ✅
-│       │   └── jobs.py        # Daily collection jobs
+│       │   ├── jobs.py        # Daily collection jobs
+│       │   └── analysis.py    # AI analysis and vectorization scheduler
 │       ├── analyzers/        # LLM paper analysis ✅
 │       │   ├── llm.py         # GLM-4.7 client
 │       │   ├── prompts.py     # Analysis prompts
@@ -200,4 +206,4 @@ MIT License
 
 ---
 
-**文档更新**: 2025-12-28
+**文档更新**: 2025-12-29
