@@ -182,6 +182,54 @@ def render_flywheel_page(client: APIClient) -> None:
             else:
                 st.error("❌ 报告生成失败")
 
+    st.markdown("---")
+
+    # 最新报告查看区域
+    st.subheader("📖 最新深度报告")
+    st.markdown("查看最近生成的深度分析报告")
+
+    # 获取最新报告
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    reports_response = client.list_deep_reports(limit=5)
+
+    if reports_response and reports_response.get("content"):
+        reports = reports_response["content"]
+        if reports:
+            # 显示报告列表
+            for report in reports:
+                with st.expander(
+                    f"📅 {report.get('report_date', today_str)} - "
+                    f"{report.get('total_papers', 0)} 篇论文, "
+                    f"{report.get('high_value_papers', 0)} 篇高价值"
+                ):
+                    # 显示报告内容
+                    content = report.get("content", {})
+                    if content:
+                        # 研究概要
+                        if summary := content.get("research_summary"):
+                            st.markdown("### 📌 研究概要")
+                            st.markdown(summary)
+
+                        # 热点话题
+                        if hot_topics := content.get("hot_topics"):
+                            st.markdown("### 🔥 热点话题")
+                            for topic in hot_topics:
+                                st.markdown(
+                                    f"- **{topic.get('topic', 'N/A')}**: {topic.get('description', '')}"
+                                )
+
+                        # 推荐论文
+                        if recommended := content.get("recommended_papers"):
+                            st.markdown("### ⭐ 推荐论文")
+                            for i, paper in enumerate(recommended[:5], 1):
+                                st.markdown(f"{i}. **{paper.get('title', 'N/A')}**")
+                                if reason := paper.get("reason"):
+                                    st.caption(f"推荐理由: {reason}")
+        else:
+            st.info("暂无深度报告，请先生成报告")
+    else:
+        st.info("暂无深度报告，请先生成报告")
+
     # 自动刷新提示
     st.markdown("---")
     st.caption("💡 提示：状态会自动更新，也可以点击刷新按钮手动更新。")

@@ -401,3 +401,25 @@ class APIClient:
 
         # 使用 params 传递查询参数（后端使用 Query 接收）
         return self._request("POST", "/api/v1/reports/generate-deep", params=params)
+
+    def get_deep_report(self, report_date: str) -> dict[str, Any] | None:
+        """获取指定日期的深度报告详情
+
+        Args:
+            report_date: 日期字符串 (YYYY-MM-DD)
+
+        Returns:
+            报告详情数据，失败返回 None
+        """
+        return self._request("GET", f"/api/v1/reports/deep/{report_date}")
+
+    def list_deep_reports(self, limit: int = 10) -> dict[str, Any] | None:
+        """获取深度报告列表
+
+        Args:
+            limit: 返回数量限制
+
+        Returns:
+            报告列表数据，失败返回 None
+        """
+        return self._request("GET", "/api/v1/reports/deep", params={"limit": limit})
