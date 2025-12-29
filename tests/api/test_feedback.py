@@ -66,7 +66,7 @@ def test_create_feedback_paper_not_found(client):
     assert response.status_code == 404
 
 
-@patch("evo_flywheel.api.v1.feedback.create_feedback")
+@patch("evo_flywheel.db.crud.create_feedback")
 def test_create_feedback_db_error(mock_create, client, paper_factory):
     """测试数据库错误处理"""
     paper = paper_factory(title="Test Paper")
